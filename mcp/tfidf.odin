@@ -182,14 +182,6 @@ Api_Search_Result :: struct {
 	index: int,
 }
 
-destroy_api_search_result :: proc(res: ^Api_Search_Result) {
-	// delete(res.name)
-}
-destroy_api_search_results :: proc(res: ^[]Api_Search_Result) {
-	// for &r in res {destroy_api_search_result(&r)}
-	// delete(res^)
-}
-
 api_search :: proc(
 	server: ^Server,
 	query: string,
@@ -202,7 +194,6 @@ api_search :: proc(
 	vec := query_vectors(&server.api_index, query)
 	defer delete(vec)
 	scores := make([]Api_Search_Result, ndocs)
-	defer destroy_api_search_results(&scores)
 
 
 	for doc, i in server.api_index.docs {
