@@ -1,26 +1,43 @@
-package necronomicon_mcp
+package miskatonic_mcp
 
+import "core:fmt"
 import "core:math"
+import "core:mem"
+import "core:slice"
+import "core:strings"
+
+DEFAULT_API_SEARCH_ARENA_SIZE :: 1 * mem.Megabyte
 
 @(private = "package")
 Document :: struct {
 	id:     int,
 	name:   string,
 	tokens: []string,
+	vec:    []f32,
 }
+
 
 @(private = "package")
 Vocab :: struct {
 	word_to_index: map[string]int,
+	words:         []string,
 	doc_frequency: []int, // how many docs contain each word
 	total_docs:    int,
 }
 
 @(private = "package")
 Tfidf :: struct {
-	vocab: Vocab,
-	docs:  [dynamic]Document,
-	idf:   []f32,
+	arena:     mem.Arena,
+	arena_mem: []u8,
+	vocab:     Vocab,
+	docs:      [dynamic]Document,
+	idf:       []f32,
+}
+
+@(private = "package")
+destroy_tfidf :: proc(tfidf: ^Tfidf) {
+	mem.arena_free_all(&tfidf.arena)
+	delete(tfidf.arena_mem)
 }
 
 @(private = "package")
@@ -38,6 +55,7 @@ build_vocabulary :: proc(tfidf: ^Tfidf) {
 	}
 
 	tfidf.vocab.doc_frequency = make([]int, len(tfidf.vocab.word_to_index))
+	tfidf.vocab.words = make([]string, len(tfidf.vocab.word_to_index))
 	tfidf.vocab.total_docs = len(tfidf.docs)
 
 	for doc in tfidf.docs {
@@ -46,6 +64,7 @@ build_vocabulary :: proc(tfidf: ^Tfidf) {
 		for token in doc.tokens {
 			if token not_in seen {
 				idx := tfidf.vocab.word_to_index[token]
+				tfidf.vocab.words[idx] = strings.clone(token)
 				tfidf.vocab.doc_frequency[idx] += 1
 				seen[token] = true
 			}
@@ -60,20 +79,150 @@ calculate_idf :: proc(tfidf: ^Tfidf) {
 	for i in 0 ..< len(tfidf.idf) {
 		df := f32(tfidf.vocab.doc_frequency[i])
 		total := f32(tfidf.vocab.total_docs)
-		tfidf.idf[i] = math.ln(total / (df + 1.0))
+		tfidf.idf[i] = math.ln((total + 1.0) / (df + 1.0))
 	}
 }
 
-process_doc_vectors :: proc(doc: ^Document) {
-	// todo
+@(private = "package")
+build_doc_vectors :: proc(tfidf: ^Tfidf, doc: ^Document) {
+	doc.vec = make([]f32, len(tfidf.vocab.word_to_index))
+	tf := make(map[int]int)
+	defer delete(tf)
+
+	for token in doc.tokens {
+		idx := tfidf.vocab.word_to_index[token]
+		tf[idx] += 1
+	}
+
+	doclen := f32(len(doc.tokens))
+	for idx, ct in tf {
+		doc.vec[idx] = (f32(ct) / doclen) * tfidf.idf[idx]
+	}
+	sum_sq: f32 = 0
+	for val in doc.vec {
+		sum_sq += val * val
+	}
+	normalized := math.sqrt(sum_sq)
+	if normalized > 0 {
+		for &val in doc.vec {
+			val /= normalized
+		}
+	}
+}
+
+@(private = "package")
+query_vectors :: proc(tfidf: ^Tfidf, query: string) -> (vec: []f32) {
+	tokens := make([dynamic]string)
+	tokenize_prose(&tokens, query)
+	defer delete(tokens)
+
+	vec = make([]f32, len(tfidf.vocab.word_to_index))
+	tf := make(map[int]int)
+
+	for token in tokens {
+		if idx, ok := tfidf.vocab.word_to_index[token]; ok {
+			tf[idx] += 1
+		}
+	}
+	qlen := f32(len(tokens))
+	for idx, ct in tf {
+		vec[idx] = (f32(ct) / qlen) * tfidf.idf[idx]
+	}
+	sum_sq: f32 = 0
+	for val in vec {
+		sum_sq += val * val
+	}
+	normalized := math.sqrt(sum_sq)
+	if normalized > 0 {
+		for &val in vec {
+			val /= normalized
+		}
+	}
+	return
+}
+
+@(private = "package")
+dot_product :: proc(a, b: []f32) -> (dot: f32) {
+	for i in 0 ..< len(a) {
+		dot += a[i] * b[i]
+	}
+	return
+}
+
+init_tfidf :: proc(tfidf: ^Tfidf, arena_size: int = 1 * mem.Megabyte) {
+	tfidf.arena_mem = make([]byte, arena_size)
+	mem.arena_init(&tfidf.arena, tfidf.arena_mem)
+}
+
+add_api_to_index :: proc(tfidf: ^Tfidf, name, docs, description: string) {
+	context.allocator = mem.arena_allocator(&tfidf.arena)
+	tokens := make([dynamic]string)
+	tokenize_luadoc(&tokens, strings.clone(docs), strings.clone(description))
+	id := len(tfidf.docs) + 1
+	doc := Document {
+		id     = id,
+		name   = strings.clone(name),
+		tokens = tokens[:],
+	}
+	append(&tfidf.docs, doc)
 }
 
 build_api_index :: proc(server: ^Mcp_Server) {
+	context.allocator = mem.arena_allocator(&server.api_index.arena)
 	build_vocabulary(&server.api_index)
 	calculate_idf(&server.api_index)
-	for doc in server.api_index.docs {
-		// maybe i jsut store the vectors and normalized vectors in the doc record?
-		// build_doc_vectors(&server.api_index, doc)
-		// normalize_doc_vectors(&server.api_index, doc)
+	for &doc in server.api_index.docs {
+		build_doc_vectors(&server.api_index, &doc)
 	}
+}
+
+Api_Search_Result :: struct {
+	score: f32,
+	name:  string,
+	index: int,
+}
+
+destroy_api_search_result :: proc(res: ^Api_Search_Result) {
+	// delete(res.name)
+}
+destroy_api_search_results :: proc(res: ^[]Api_Search_Result) {
+	// for &r in res {destroy_api_search_result(&r)}
+	// delete(res^)
+}
+
+api_search :: proc(
+	server: ^Mcp_Server,
+	query: string,
+	result_count := 5,
+) -> (
+	results: []Api_Search_Result,
+) {
+	context.allocator = mem.arena_allocator(&server.api_index.arena)
+	ndocs := len(server.api_index.docs)
+	vec := query_vectors(&server.api_index, query)
+	defer delete(vec)
+	scores := make([]Api_Search_Result, ndocs)
+	defer destroy_api_search_results(&scores)
+
+
+	for doc, i in server.api_index.docs {
+		score := dot_product(vec, doc.vec)
+		scores[i] = {
+			score = score,
+			name  = strings.clone(doc.name),
+			index = i,
+		}
+	}
+
+	nres := len(scores)
+	ct := result_count > nres ? nres : result_count
+	slice.sort_by(scores, proc(i, j: Api_Search_Result) -> bool {
+		return i.score > j.score
+	})
+	results = slice.clone(scores[:ct])
+	for &res in results {
+		res.name = strings.clone(res.name)
+	}
+
+	return
 }

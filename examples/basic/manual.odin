@@ -19,7 +19,7 @@ MyOutput :: struct {
 
 
 setup_manual_apis :: proc(server: ^mcp.Mcp_Server) {
-	MANUAL_DOCS :: `
+	MANUAL_DOCS_MARSHALED :: `
 ---@class Input
 ---@field hello string
 ---@field goodbye string
@@ -28,47 +28,60 @@ setup_manual_apis :: proc(server: ^mcp.Mcp_Server) {
 ---@field hi string
 ---@field bye string
 
----say hello and goodbye to me
----@param params WeatherParams
----@return WeatherReport
+---helps you say hello and goodbye to me and me say hi and bye to you
+---@param params Input
+---@return Output
 function %s(params) end
 
 -- example:
-local res = %s(%s)
+local res = hello_goodbye_marshaled({ hello = "hello my good friend", goodbye = "farewell babe" })
 print("hi:", res.hi)
 print("bye:", res.bye)
 `
 
 
-	// admittedly i am going through far too much work to make my fmt.aprintf call below work for a silly example
-	MANUAL_DOCS_PARAM :: `{ hello = "hello my good friend", goodbye = "farewell babe" }`
+	MANUAL_DOCS_RAW_LUA :: `
+---@class Input
+---@field hello string
+---@field goodbye string
+
+---@class Output
+---@field hi string
+---@field bye string
+
+---helps you say hello and goodbye to me and me say hi and bye to you
+---@param params Input
+---@return Output
+function %s(params) end
+
+-- example:
+local res = hello_goodbye_raw_lua({ hello = "hey good luck with that lua stack", goodbye = "so long hope you didnt mess up your memory" })
+print("hi:", res.hi)
+print("bye:", res.bye)
+`
 
 
-	TOOL_A :: "hello_goodbye_a"
-	tool_a_docs := fmt.aprintf(MANUAL_DOCS, TOOL_A, TOOL_A, MANUAL_DOCS_PARAM)
-	defer delete(tool_a_docs)
+	TOOL_MARSHALED :: "hello_goodbye_marshaled"
 
 	mcp.register_mcp_api(
 		server,
-		TOOL_A,
-		"Hello / Goodbye w/ marshaling helpers",
-		tool_a_docs,
+		TOOL_MARSHALED,
+		"Hello/Goodbye with marshaling helpers",
+		MANUAL_DOCS_MARSHALED,
 		proc(state: ^lua.State) {
-			lua.register(state, TOOL_A, hello_goodbye_with_marshaling)
+			lua.register(state, TOOL_MARSHALED, hello_goodbye_with_marshaling)
 		},
 	)
 
-	TOOL_B :: "hello_goodbye_b"
-	tool_b_docs := fmt.aprintf(MANUAL_DOCS, TOOL_B, TOOL_B, MANUAL_DOCS_PARAM)
-	defer delete(tool_b_docs)
+	TOOL_RAW_LUA :: "hello_goodbye_raw_lua"
 
 	mcp.register_mcp_api(
 		server,
-		TOOL_B,
-		"Hello / Goodbye w/ manual lua stack tomfoolery",
-		tool_b_docs,
+		TOOL_RAW_LUA,
+		"Hello/Goodbye with manual lua stack tomfoolery",
+		MANUAL_DOCS_RAW_LUA,
 		proc(state: ^lua.State) {
-			lua.register(state, TOOL_B, hello_goodbye_totally_manual)
+			lua.register(state, TOOL_RAW_LUA, hello_goodbye_totally_manual)
 		},
 	)
 }

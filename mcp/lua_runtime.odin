@@ -1,4 +1,4 @@
-package necronomicon_mcp
+package miskatonic_mcp
 
 import "base:runtime"
 import "core:fmt"
@@ -64,6 +64,7 @@ lua_evaluate :: proc(
 
 	output_len := lua.rawlen(state, -1)
 	output_builder := strings.builder_make()
+	defer strings.builder_destroy(&output_builder)
 
 	for idx in 1 ..= output_len {
 		lua.geti(state, -1, lua.Integer(idx))
@@ -80,6 +81,7 @@ lua_evaluate :: proc(
 	}
 
 	output = strings.to_string(output_builder)
+
 
 	return
 }

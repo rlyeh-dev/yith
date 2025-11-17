@@ -1,4 +1,4 @@
-package necronomicon_mcp
+package miskatonic_mcp
 
 import "core:fmt"
 import "core:strings"
@@ -102,12 +102,11 @@ luadoc_tokenizing_cleanup :: proc() {
 }
 
 tokenize_luadoc :: proc(
+	results: ^[dynamic]string,
 	documentation: string,
 	description: string = "",
-) -> (
-	results: [dynamic]string,
 ) {
-	tokenize_prose(&results, description)
+	tokenize_prose(results, description)
 
 	lines := strings.split_lines(documentation)
 	defer delete(lines)
@@ -123,50 +122,50 @@ tokenize_luadoc :: proc(
 	for line in lines {
 		// fmt.printfln("\n#### TEST %s", line)
 		if _, matched = regex.match(rgx_class, line, &cap); matched {
-			tokenize_identifier(&results, cap.groups[1])
+			tokenize_identifier(results, cap.groups[1])
 			continue
 		}
 
 		if _, matched = regex.match(rgx_func_def, line, &cap); matched {
-			tokenize_identifier(&results, cap.groups[1])
+			tokenize_identifier(results, cap.groups[1])
 			continue
 		}
 
 		if _, matched = regex.match(rgx_func_exp, line, &cap); matched {
-			tokenize_identifier(&results, cap.groups[1])
+			tokenize_identifier(results, cap.groups[1])
 			continue
 		}
 
 		if _, matched = regex.match(rgx_return_a, line, &cap); matched {
-			tokenize_type(&results, cap.groups[1])
+			tokenize_type(results, cap.groups[1])
 			continue
 		}
 
 		if _, matched = regex.match(rgx_return_b, line, &cap); matched {
-			tokenize_type(&results, cap.groups[1])
-			tokenize_identifier(&results, cap.groups[2])
-			tokenize_prose(&results, cap.groups[3])
+			tokenize_type(results, cap.groups[1])
+			tokenize_identifier(results, cap.groups[2])
+			tokenize_prose(results, cap.groups[3])
 			continue
 		}
 
 		if _, matched = regex.match(rgx_return_c, line, &cap); matched {
-			tokenize_type(&results, cap.groups[1])
-			tokenize_identifier(&results, cap.groups[2])
-			tokenize_prose(&results, cap.groups[3])
+			tokenize_type(results, cap.groups[1])
+			tokenize_identifier(results, cap.groups[2])
+			tokenize_prose(results, cap.groups[3])
 			continue
 		}
 
 		if _, matched = regex.match(rgx_field, line, &cap); matched {
-			tokenize_identifier(&results, cap.groups[1])
-			tokenize_type(&results, cap.groups[2])
-			tokenize_prose(&results, cap.groups[3])
+			tokenize_identifier(results, cap.groups[1])
+			tokenize_type(results, cap.groups[2])
+			tokenize_prose(results, cap.groups[3])
 			continue
 		}
 
 		if _, matched = regex.match(rgx_param, line, &cap); matched {
-			tokenize_identifier(&results, cap.groups[1])
-			tokenize_type(&results, cap.groups[2])
-			tokenize_prose(&results, cap.groups[3])
+			tokenize_identifier(results, cap.groups[1])
+			tokenize_type(results, cap.groups[2])
+			tokenize_prose(results, cap.groups[3])
 			continue
 		}
 
@@ -176,11 +175,11 @@ tokenize_luadoc :: proc(
 
 		if strings.starts_with(line, "--") {
 			// comment or doc comment, is prose
-			tokenize_prose(&results, line)
+			tokenize_prose(results, line)
 			continue
 		}
 
-		tokenize_prose(&results, line)
+		tokenize_prose(results, line)
 	}
 
 
@@ -217,7 +216,9 @@ tokenize_identifier :: proc(results: ^[dynamic]string, str: string) {
 	defer delete(snaked)
 	append(results, strings.clone(snaked))
 	if strings.contains(snaked, "_") {
-		for s in strings.split(snaked, "_") {
+		segments := strings.split(snaked, "_")
+		defer delete(segments)
+		for s in segments {
 			append(results, strings.clone(s))
 		}
 	}
