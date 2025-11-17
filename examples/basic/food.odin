@@ -1,0 +1,64 @@
+package basic_mcp
+
+import mcp "../../mcp"
+import "core:math/rand"
+import "core:strings"
+import lua "vendor:lua/5.4"
+
+Food_Service_Input :: struct {
+	food:  string,
+	count: i64,
+}
+
+Food_Service_Output :: struct {
+	food: string,
+	cost: f64,
+}
+
+setup_food_service :: proc(server: ^mcp.Mcp_Server) {
+	NAME :: "simple_food_service"
+	mcp.register_mcp_api(
+		server,
+		name = NAME,
+		description = "Gives you some of your favorite food",
+		docs = #load("food.lua"),
+		setup = proc(state: ^lua.State) {
+			mcp.register_typed_lua_handler(
+				state,
+				Food_Service_Input,
+				Food_Service_Output,
+				NAME,
+				food_service_tool,
+			)
+		},
+	)
+}
+
+food_service_tool :: proc(
+	input: Food_Service_Input,
+) -> (
+	output: Food_Service_Output,
+	error: string,
+) {
+	if input.food == "cherry" {
+		error = "You can't have ANY OF my cherries THEY ARE MINE"
+		return
+	}
+
+	if input.count > 10 {
+		error = "You can't have more than 10 of any one food"
+		return
+	}
+
+	// no delete needed, all tools are in an arena allocator
+	out := make([dynamic]string)
+
+	for i in 0 ..< input.count {
+		append(&out, input.food)
+	}
+
+	output.food = strings.join(out[:], ", ")
+	output.cost = rand.float64() * 50
+
+	return
+}

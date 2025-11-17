@@ -1,0 +1,14 @@
+[
+  {
+    "adapter": "CodeLLDB",
+    "label": "Debug Example MCP Server",
+    "program": "$ZED_WORKTREE_ROOT/examples/basic/basic",
+    "request": "launch",
+    "cwd": "$ZED_WORKTREE_ROOT/examples/basic",
+    "build": {
+      "command": "odin",
+      "args": ["build", ".", "-debug"],
+      "cwd": "$ZED_WORKTREE_ROOT/examples/basic"
+    }
+  }
+]
