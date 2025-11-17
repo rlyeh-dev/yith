@@ -5,7 +5,7 @@ import "core:fmt"
 import "core:mem"
 import "core:slice"
 
-check_eval :: proc(server: ^mcp.Mcp_Server, title, code: string) {
+check_eval :: proc(server: ^mcp.Server, title, code: string) {
 	fmt.eprintln("----------------------------")
 	fmt.eprintfln("EVAL TEST: %s", title)
 	fmt.eprintln("code to evaluate: ")
@@ -18,7 +18,7 @@ check_eval :: proc(server: ^mcp.Mcp_Server, title, code: string) {
 	fmt.eprintln()
 }
 
-print_extra_debug_info :: proc(server: ^mcp.Mcp_Server) {
+print_extra_debug_info :: proc(server: ^mcp.Server) {
 	check_eval(server, "basic (should succeed)", #load("eval_tests/basic.lua"))
 	check_eval(server, "cherry (should fail)", #load("eval_tests/cherry.lua"))
 	check_eval(server, "badarg (should fail)", #load("eval_tests/badarg.lua"))
@@ -91,7 +91,7 @@ main :: proc() {
 		defer tracking_alloc_report_and_cleanup(&track)
 	}
 
-	server := mcp.make_mcp_server("Basic MCP", "im a basic example", "2.1.4")
+	server := mcp.make_server("Basic MCP", "im a basic example", "2.1.4")
 
 	setup_food_service(&server)
 	setup_interplanetary_weather(&server)
@@ -103,5 +103,5 @@ main :: proc() {
 		print_extra_debug_info(&server)
 	}
 
-	mcp.destroy_mcp_server(&server)
+	mcp.destroy_server(&server)
 }

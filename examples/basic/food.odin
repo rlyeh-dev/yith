@@ -15,9 +15,9 @@ Food_Service_Output :: struct {
 	cost: f64,
 }
 
-setup_food_service :: proc(server: ^mcp.Mcp_Server) {
+setup_food_service :: proc(server: ^mcp.Server) {
 	NAME :: "simple_food_service"
-	mcp.register_mcp_api(
+	mcp.register_api(
 		server,
 		name = NAME,
 		description = "Gives you some of your favorite food",

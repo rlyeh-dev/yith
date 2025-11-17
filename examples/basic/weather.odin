@@ -61,7 +61,7 @@ weather_lookup :: proc(loc: string) -> (weather: Weather_Report_Extended, error:
 	return
 }
 
-setup_interplanetary_weather :: proc(server: ^mcp.Mcp_Server) {
+setup_interplanetary_weather :: proc(server: ^mcp.Server) {
 	WEATHER_TOOL :: "interplanetary_weather"
 	setup :: proc(state: ^lua.State) {
 		mcp.register_typed_lua_handler(
@@ -72,7 +72,7 @@ setup_interplanetary_weather :: proc(server: ^mcp.Mcp_Server) {
 			interplanetary_weather,
 		)
 	}
-	mcp.register_mcp_api(
+	mcp.register_api(
 		server,
 		name = WEATHER_TOOL,
 		description = "whether you're on mars, io, or surfing the asteroid belt, we've got your weather conditions covered",

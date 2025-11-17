@@ -167,7 +167,7 @@ add_api_to_index :: proc(tfidf: ^Tfidf, name, docs, description: string) {
 	append(&tfidf.docs, doc)
 }
 
-build_api_index :: proc(server: ^Mcp_Server) {
+build_api_index :: proc(server: ^Server) {
 	context.allocator = mem.arena_allocator(&server.api_index.arena)
 	build_vocabulary(&server.api_index)
 	calculate_idf(&server.api_index)
@@ -191,7 +191,7 @@ destroy_api_search_results :: proc(res: ^[]Api_Search_Result) {
 }
 
 api_search :: proc(
-	server: ^Mcp_Server,
+	server: ^Server,
 	query: string,
 	result_count := 5,
 ) -> (

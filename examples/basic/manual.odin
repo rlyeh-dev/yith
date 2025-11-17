@@ -18,7 +18,7 @@ MyOutput :: struct {
 }
 
 
-setup_manual_apis :: proc(server: ^mcp.Mcp_Server) {
+setup_manual_apis :: proc(server: ^mcp.Server) {
 	MANUAL_DOCS_MARSHALED :: `
 ---@class Input
 ---@field hello string
@@ -63,7 +63,7 @@ print("bye:", res.bye)
 
 	TOOL_MARSHALED :: "hello_goodbye_marshaled"
 
-	mcp.register_mcp_api(
+	mcp.register_api(
 		server,
 		TOOL_MARSHALED,
 		"Hello/Goodbye with marshaling helpers",
@@ -75,7 +75,7 @@ print("bye:", res.bye)
 
 	TOOL_RAW_LUA :: "hello_goodbye_raw_lua"
 
-	mcp.register_mcp_api(
+	mcp.register_api(
 		server,
 		TOOL_RAW_LUA,
 		"Hello/Goodbye with manual lua stack tomfoolery",
