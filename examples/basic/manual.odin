@@ -31,7 +31,7 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 ---helps you say hello and goodbye to me and me say hi and bye to you
 ---@param params Input
 ---@return Output
-function %s(params) end
+function hello_goodbye_marshaled(params) end
 
 -- example:
 local res = hello_goodbye_marshaled({ hello = "hello my good friend", goodbye = "farewell babe" })
@@ -52,7 +52,7 @@ print("bye:", res.bye)
 ---helps you say hello and goodbye to me and me say hi and bye to you
 ---@param params Input
 ---@return Output
-function %s(params) end
+function hello_goodbye_raw_lua(params) end
 
 -- example:
 local res = hello_goodbye_raw_lua({ hello = "hey good luck with that lua stack", goodbye = "so long hope you didnt mess up your memory" })

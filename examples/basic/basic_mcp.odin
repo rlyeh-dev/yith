@@ -11,7 +11,7 @@ check_eval :: proc(server: ^mcp.Server, title, code: string) {
 	fmt.eprintln("code to evaluate: ")
 	fmt.eprint(code)
 	fmt.eprintln()
-	out, ok := mcp.tool_evaluate(server, code)
+	out, ok := mcp.evaluate_tool(server, code)
 	fmt.eprintfln("STATUS OF %s: %s", title, ok ? "success" : "failure")
 	fmt.eprintln("result output:")
 	fmt.eprint(out)
@@ -19,40 +19,62 @@ check_eval :: proc(server: ^mcp.Server, title, code: string) {
 }
 
 print_extra_debug_info :: proc(server: ^mcp.Server) {
-	check_eval(server, "basic (should succeed)", #load("eval_tests/basic.lua"))
-	check_eval(server, "cherry (should fail)", #load("eval_tests/cherry.lua"))
-	check_eval(server, "badarg (should fail)", #load("eval_tests/badarg.lua"))
-	check_eval(server, "toomany (should fail)", #load("eval_tests/toomany.lua"))
-
-	fmt.eprintln("---------------------------- TF-IDF DEBUG:\n\n")
-	for doc, idx in &server.api_index.docs {
-		fmt.eprintln("----------------------------")
-		fmt.eprintfln("-> api function: %s", server.apis[idx].name)
-		fmt.eprintfln("-> api desc: %s", server.apis[idx].description)
-		fmt.eprintfln("-> api docs:\n%s", server.apis[idx].docs)
-		fmt.eprintfln("-> scanned api: %w\n\n", doc)
+	when #config(eval_debug, true) {
+		check_eval(server, "basic (should succeed)", #load("eval_tests/basic.lua"))
+		check_eval(server, "cherry (should fail)", #load("eval_tests/cherry.lua"))
+		check_eval(server, "badarg (should fail)", #load("eval_tests/badarg.lua"))
+		check_eval(server, "toomany (should fail)", #load("eval_tests/toomany.lua"))
 	}
-	for word, idx in &server.api_index.vocab.words {
-		fmt.eprintf("%s (%d): ", word, idx)
-		found := 0
-		for doc, i in &server.api_index.docs {
-			val := doc.vec[idx]
-			if val == 0 {continue}
-			if found > 0 {fmt.eprintf(", ")}
-			found += 1
-			fmt.eprintf("%s->%.3f", doc.name, doc.vec[idx])
+
+
+	when #config(tfidf_debug, false) {
+		fmt.eprintln("---------------------------- TF-IDF DEBUG:\n\n")
+		for doc, idx in &server.api_index.docs {
+			fmt.eprintln("----------------------------")
+			fmt.eprintfln("-> api function: %s", server.apis[idx].name)
+			fmt.eprintfln("-> api desc: %s", server.apis[idx].description)
+			fmt.eprintfln("-> api docs:\n%s", server.apis[idx].docs)
+			fmt.eprintfln("-> scanned api: %w\n\n", doc)
 		}
-		fmt.eprintf("\n")
+		for word, idx in &server.api_index.vocab.words {
+			fmt.eprintf("%s (%d): ", word, idx)
+			found := 0
+			for doc, i in &server.api_index.docs {
+				val := doc.vec[idx]
+				if val == 0 {continue}
+				if found > 0 {fmt.eprintf(", ")}
+				found += 1
+				fmt.eprintf("%s->%.3f", doc.name, doc.vec[idx])
+			}
+			fmt.eprintf("\n")
+		}
+		fmt.eprintln()
 	}
-	fmt.eprintln()
 
-	srch_qry := "weather fahrenheit hello report kelvin cherry orphan mercury mars balloon"
-	srch_res := mcp.api_search(server, srch_qry, 8)
-	defer mcp.destroy_api_search_results(&srch_res)
+	when #config(search_debug, true) {
+		srch_qry :: "weather fahrenheit hello report kelvin cherry orphan mercury mars balloon"
+		srch_res, srch_ok := mcp.search_tool(server, srch_qry, 2)
+		defer delete(srch_res)
+		fmt.eprintfln(
+			"\n\n-----\nSearch tool: %s (%s)",
+			srch_qry,
+			srch_ok ? "succeeded" : "failed",
+		)
+		fmt.eprint(srch_res)
+	}
 
-	fmt.eprintfln("api search query: %w", srch_qry)
-	for sres, i in srch_res {
-		fmt.eprintfln("search result #%d: %w", i + 1, sres)
+	when #config(list_debug, true) {
+		list_res, list_ok := mcp.list_tool(server)
+		defer delete(list_res)
+		fmt.eprintfln("\n\n-----\nList Tool: %s", list_ok ? "succeeded" : "failed")
+		fmt.eprint(list_res)
+	}
+
+	when #config(docs_debug, true) {
+		docs_res, docs_ok := mcp.docs_tool(server, "interplanetary_weather")
+		defer delete(docs_res)
+		fmt.eprintfln("\n\n-----\nDocs Tool: %s", docs_ok ? "succeeded" : "failed")
+		fmt.eprint(docs_res)
 	}
 
 }

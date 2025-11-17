@@ -7,9 +7,9 @@ Unlike the above-mentioned blog posts, which advocate for LLMs running Typescrip
 Only four tools are provided to LLMs:
 
 - **evaluate**: LLM provides a block of lua code to execute in the lua sandbox
-- **api_search**: A tf-idf powered search of all lua api functions available within the sandbox based on the content of the luadoc api docs
-- **api_list**: Lists only the name and description of each function available
-- **api_docs**: look up the luadoc documenation for a single api function
+- **search**: A tf-idf powered search of all lua api functions available within the sandbox based on the content of the luadoc api docs
+- **list**: Lists only the name and description of each function available
+- **docs**: look up the luadoc documenation for a single api function
 
 The only other MCP-SDK features that support is planned for are user-initiated prompts (slash commands), though client support for these is incredibly limited currently, so it is not a priority.
 
