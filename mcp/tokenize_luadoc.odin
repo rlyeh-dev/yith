@@ -1,6 +1,7 @@
 package miskatonic_mcp
 
 import "core:fmt"
+import "core:log"
 import "core:mem"
 import "core:slice"
 import "core:strings"
@@ -58,35 +59,35 @@ tokenize_luadoc :: proc(
 	rgx_class, rgx_field, rgx_param, rgx_func_def, rgx_func_exp, rgx_return_a, rgx_return_b, rgx_return_c: regex.Regular_Expression
 	err: regex.Error
 	if rgx_class, err = regex.create(CLASS); err != nil {
-		panic(fmt.aprintf("fix your regex (class): %w", err))
+		log.panicf("fix your regex (class): %w", err)
 	}
 	defer regex.destroy(rgx_class)
 	if rgx_field, err = regex.create(FIELD); err != nil {
-		panic(fmt.aprintf("fix your regex (field): %w", err))
+		log.panicf("fix your regex (field): %w", err)
 	}
 	defer regex.destroy(rgx_field)
 	if rgx_param, err = regex.create(PARAM); err != nil {
-		panic(fmt.aprintf("fix your regex (param): %w", err))
+		log.panicf("fix your regex (param): %w", err)
 	}
 	defer regex.destroy(rgx_param)
 	if rgx_func_def, err = regex.create(FN_DEF); err != nil {
-		panic(fmt.aprintf("fix your regex (func def): %w", err))
+		log.panicf("fix your regex (func def): %w", err)
 	}
 	defer regex.destroy(rgx_func_def)
 	if rgx_func_exp, err = regex.create(FN_EXP); err != nil {
-		panic(fmt.aprintf("fix your regex (func expr): %w", err))
+		log.panicf("fix your regex (func expr): %w", err)
 	}
 	defer regex.destroy(rgx_func_exp)
 	if rgx_return_a, err = regex.create(RETURN_A); err != nil {
-		panic(fmt.aprintf("fix your regex (return a): %w", err))
+		log.panicf("fix your regex (return a): %w", err)
 	}
 	defer regex.destroy(rgx_return_a)
 	if rgx_return_b, err = regex.create(RETURN_B); err != nil {
-		panic(fmt.aprintf("fix your regex (return b): %w", err))
+		log.panicf("fix your regex (return b): %w", err)
 	}
 	defer regex.destroy(rgx_return_b)
 	if rgx_return_c, err = regex.create(RETURN_C); err != nil {
-		panic(fmt.aprintf("fix your regex (return c): %w", err))
+		log.panicf("fix your regex (return c): %w", err)
 	}
 	defer regex.destroy(rgx_return_c)
 
@@ -212,7 +213,7 @@ tokenize_type :: proc(results: ^[dynamic]string, str: string) {
 	rgx_enum: regex.Regular_Expression
 	err: regex.Error
 	if rgx_enum, err = regex.create(ENUM); err != nil {
-		panic(fmt.aprintf("fix your regex (enum): %w", err))
+		log.panicf("fix your regex (enum): %w", err)
 	}
 	matched: bool
 
