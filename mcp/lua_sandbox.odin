@@ -16,11 +16,13 @@ Sandbox :: struct {
 	arena_mem: []u8,
 }
 
+@(private = "package")
 init_sandbox :: proc(sandbox: ^Sandbox, arena_size: int = DEFAULT_SANDBOX_ARENA_SIZE) {
 	sandbox.arena_mem = make([]byte, arena_size)
 	mem.arena_init(&sandbox.arena, sandbox.arena_mem)
 }
 
+@(private = "package")
 destroy_sandbox :: proc(sandbox: ^Sandbox) {
 	mem.arena_free_all(&sandbox.arena)
 	delete(sandbox.arena_mem)
@@ -60,7 +62,7 @@ lua_evaluate :: proc(
 		api.setup(state)
 	}
 
-	lua.L_dostring(state, #load("print_harness.lua"))
+	lua.L_dostring(state, #load("etc/print_harness.lua"))
 
 	code_cstr := strings.clone_to_cstring(lua_code)
 	defer delete(code_cstr)
