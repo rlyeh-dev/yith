@@ -25,6 +25,7 @@ Server :: struct {
 	version:     string,
 	sandbox:     Sandbox,
 	apis:        [dynamic]Api,
+	api_names:   map[string]int,
 	setups:      [dynamic]Lua_Setup,
 	api_index:   Tfidf,
 }
@@ -36,6 +37,10 @@ destroy_server :: proc(server: ^Server) {
 	for &api in server.apis {
 		destroy_api(&api)
 	}
+	for name, _ in server.api_names {
+		delete(name)
+	}
+	delete(server.api_names)
 	delete(server.apis)
 	delete(server.setups)
 	destroy_tfidf(&server.api_index)
@@ -52,7 +57,7 @@ register_api :: proc(server: ^Server, name, description, docs: string, setup: Lu
 			setup = setup,
 		},
 	)
-
+	server.api_names[strings.clone(name)] = len(server.apis) - 1
 	add_api_to_index(&server.api_index, name, description, docs)
 }
 
@@ -70,6 +75,9 @@ init_server :: proc(
 	server.name = strings.clone(name)
 	server.description = strings.clone(description)
 	server.version = strings.clone(version)
+	server.apis = make([dynamic]Api)
+	server.api_names = make(map[string]int)
+
 	init_tfidf(&server.api_index, api_search_arena_size)
 	init_sandbox(&server.sandbox, sandbox_arena_size)
 }
