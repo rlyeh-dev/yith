@@ -149,11 +149,13 @@ dot_product :: proc(a, b: []f32) -> (dot: f32) {
 	return
 }
 
+@(private = "package")
 init_tfidf :: proc(tfidf: ^Tfidf, arena_size: int = 1 * mem.Megabyte) {
 	tfidf.arena_mem = make([]byte, arena_size)
 	mem.arena_init(&tfidf.arena, tfidf.arena_mem)
 }
 
+@(private = "package")
 add_api_to_index :: proc(tfidf: ^Tfidf, name, docs, description: string) {
 	context.allocator = mem.arena_allocator(&tfidf.arena)
 	tokens := make([dynamic]string)
@@ -167,6 +169,7 @@ add_api_to_index :: proc(tfidf: ^Tfidf, name, docs, description: string) {
 	append(&tfidf.docs, doc)
 }
 
+@(private = "package")
 build_api_index :: proc(server: ^Server) {
 	context.allocator = mem.arena_allocator(&server.api_index.arena)
 	build_vocabulary(&server.api_index)
@@ -176,12 +179,14 @@ build_api_index :: proc(server: ^Server) {
 	}
 }
 
+@(private = "package")
 Api_Search_Result :: struct {
 	score: f32,
 	name:  string,
 	index: int,
 }
 
+@(private = "package")
 api_search :: proc(
 	server: ^Server,
 	query: string,
