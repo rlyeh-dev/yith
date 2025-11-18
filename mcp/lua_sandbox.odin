@@ -9,28 +9,8 @@ import lua "vendor:lua/5.4"
 
 Lua_Setup :: #type proc(state: ^lua.State)
 
-DEFAULT_SANDBOX_ARENA_SIZE :: 1 * mem.Megabyte
-
-Sandbox :: struct {
-	arena:     mem.Arena,
-	arena_mem: []u8,
-}
-
-@(private = "package")
-init_sandbox :: proc(sandbox: ^Sandbox, arena_size: int = DEFAULT_SANDBOX_ARENA_SIZE) {
-	sandbox.arena_mem = make([]byte, arena_size)
-	mem.arena_init(&sandbox.arena, sandbox.arena_mem)
-}
-
-@(private = "package")
-destroy_sandbox :: proc(sandbox: ^Sandbox) {
-	mem.arena_free_all(&sandbox.arena)
-	delete(sandbox.arena_mem)
-}
-
 @(private)
 lua_evaluate :: proc(
-	sandbox: ^Sandbox,
 	apis: []Api,
 	setup_procs: []Lua_Setup,
 	lua_code: string,
@@ -38,13 +18,15 @@ lua_evaluate :: proc(
 	output: string,
 	ok: bool,
 ) {
-	context.allocator = mem.arena_allocator(&sandbox.arena)
-	defer mem.arena_free_all(&sandbox.arena)
+	arena: mem.Dynamic_Arena
+	mem.dynamic_arena_init(&arena)
+	defer mem.dynamic_arena_destroy(&arena)
+	context.allocator = mem.dynamic_arena_allocator(&arena)
 
 	state := lua.L_newstate()
 	defer lua.close(state)
 
-	lua.pushlightuserdata(state, &sandbox.arena)
+	lua.pushlightuserdata(state, &arena)
 	lua.setfield(state, lua.REGISTRYINDEX, "arena")
 
 	lua.open_base(state)
@@ -207,8 +189,8 @@ unmarshal_lua_table :: proc(
 
 arena_from_lua :: proc(state: ^lua.State) -> (allocator: mem.Allocator) {
 	lua.getfield(state, lua.REGISTRYINDEX, "arena")
-	arena := (^mem.Arena)(lua.touserdata(state, -1))
-	allocator = mem.arena_allocator(arena)
+	arena := (^mem.Dynamic_Arena)(lua.touserdata(state, -1))
+	allocator = mem.dynamic_arena_allocator(arena)
 	lua.pop(state, 1)
 	return
 }

@@ -23,7 +23,6 @@ Server :: struct {
 	name:            string,
 	description:     string,
 	version:         string,
-	sandbox:         Sandbox,
 	apis:            [dynamic]Api,
 	api_names:       map[string]int,
 	setups:          [dynamic]Lua_Setup,
@@ -45,7 +44,6 @@ destroy_server :: proc(server: ^Server) {
 	delete(server.apis)
 	delete(server.setups)
 	destroy_tfidf(&server.api_index)
-	destroy_sandbox(&server.sandbox)
 }
 
 register_api :: proc(server: ^Server, name, description, docs: string, setup: Lua_Setup) {
@@ -66,32 +64,16 @@ register_global_lua_setup_handler :: proc(server: ^Server, setup_handler: Lua_Se
 	append(&server.setups, setup_handler)
 }
 
-init_server :: proc(
-	server: ^Server,
-	name, description: string,
-	version := "1.0.0",
-	api_search_arena_size: int = DEFAULT_API_SEARCH_ARENA_SIZE,
-	sandbox_arena_size: int = DEFAULT_SANDBOX_ARENA_SIZE,
-) {
+init_server :: proc(server: ^Server, name, description: string, version := "1.0.0") {
 	server.name = strings.clone(name)
 	server.description = strings.clone(description)
 	server.version = strings.clone(version)
 	server.apis = make([dynamic]Api)
 	server.api_names = make(map[string]int)
-
-	init_tfidf(&server.api_index, api_search_arena_size)
-	init_sandbox(&server.sandbox, sandbox_arena_size)
 }
 
-make_server :: proc(
-	name, description: string,
-	version := "1.0.0",
-	api_search_arena_size: int = DEFAULT_API_SEARCH_ARENA_SIZE,
-	sandbox_arena_size: int = DEFAULT_SANDBOX_ARENA_SIZE,
-) -> (
-	server: Server,
-) {
-	init_server(&server, name, description, version, api_search_arena_size, sandbox_arena_size)
+make_server :: proc(name, description: string, version := "1.0.0") -> (server: Server) {
+	init_server(&server, name, description, version)
 	return
 }
 

@@ -6,14 +6,21 @@ import "core:mem"
 import "core:slice"
 import "core:strings"
 
-DEFAULT_API_SEARCH_ARENA_SIZE :: 1 * mem.Megabyte
-
 @(private = "package")
 Document :: struct {
 	id:     int,
 	name:   string,
 	tokens: []string,
 	vec:    []f32,
+}
+@(private = "package")
+destroy_document :: proc(doc: ^Document) {
+	delete(doc.name)
+	for tok in doc.tokens {
+		delete(tok)
+	}
+	delete(doc.tokens)
+	delete(doc.vec)
 }
 
 
@@ -24,20 +31,30 @@ Vocab :: struct {
 	doc_frequency: []int, // how many docs contain each word
 	total_docs:    int,
 }
+@(private = "package")
+destroy_vocab :: proc(voc: ^Vocab) {
+	delete(voc.word_to_index)
+	delete(voc.words)
+	delete(voc.doc_frequency)
+}
 
 @(private = "package")
 Tfidf :: struct {
-	arena:     mem.Arena,
-	arena_mem: []u8,
-	vocab:     Vocab,
-	docs:      [dynamic]Document,
-	idf:       []f32,
+	// arena:     mem.Arena,
+	// arena_mem: []u8,
+	vocab: Vocab,
+	docs:  [dynamic]Document,
+	idf:   []f32,
 }
 
 @(private = "package")
 destroy_tfidf :: proc(tfidf: ^Tfidf) {
-	mem.arena_free_all(&tfidf.arena)
-	delete(tfidf.arena_mem)
+	for &doc in tfidf.docs {
+		destroy_document(&doc)
+	}
+	delete(tfidf.docs)
+	destroy_vocab(&tfidf.vocab)
+	delete(tfidf.idf)
 }
 
 @(private = "package")
@@ -64,7 +81,7 @@ build_vocabulary :: proc(tfidf: ^Tfidf) {
 		for token in doc.tokens {
 			if token not_in seen {
 				idx := tfidf.vocab.word_to_index[token]
-				tfidf.vocab.words[idx] = strings.clone(token)
+				tfidf.vocab.words[idx] = token
 				tfidf.vocab.doc_frequency[idx] += 1
 				seen[token] = true
 			}
@@ -113,11 +130,12 @@ build_doc_vectors :: proc(tfidf: ^Tfidf, doc: ^Document) {
 @(private = "package")
 query_vectors :: proc(tfidf: ^Tfidf, query: string) -> (vec: []f32) {
 	tokens := make([dynamic]string)
-	tokenize_prose(&tokens, query)
 	defer delete(tokens)
+	tokenize_prose(&tokens, query)
 
 	vec = make([]f32, len(tfidf.vocab.word_to_index))
 	tf := make(map[int]int)
+	defer delete(tf)
 
 	for token in tokens {
 		if idx, ok := tfidf.vocab.word_to_index[token]; ok {
@@ -150,16 +168,9 @@ dot_product :: proc(a, b: []f32) -> (dot: f32) {
 }
 
 @(private = "package")
-init_tfidf :: proc(tfidf: ^Tfidf, arena_size: int = 1 * mem.Megabyte) {
-	tfidf.arena_mem = make([]byte, arena_size)
-	mem.arena_init(&tfidf.arena, tfidf.arena_mem)
-}
-
-@(private = "package")
 add_api_to_index :: proc(tfidf: ^Tfidf, name, docs, description: string) {
-	context.allocator = mem.arena_allocator(&tfidf.arena)
 	tokens := make([dynamic]string)
-	tokenize_luadoc(&tokens, strings.clone(docs), strings.clone(description))
+	tokenize_luadoc(&tokens, docs, description)
 	id := len(tfidf.docs) + 1
 	doc := Document {
 		id     = id,
@@ -171,7 +182,6 @@ add_api_to_index :: proc(tfidf: ^Tfidf, name, docs, description: string) {
 
 @(private = "package")
 build_api_index :: proc(server: ^Server) {
-	context.allocator = mem.arena_allocator(&server.api_index.arena)
 	build_vocabulary(&server.api_index)
 	calculate_idf(&server.api_index)
 	for &doc in server.api_index.docs {
@@ -185,6 +195,13 @@ Api_Search_Result :: struct {
 	name:  string,
 	index: int,
 }
+@(private = "package")
+destroy_api_search_results :: proc(res: ^[]Api_Search_Result) {
+	for r in res {
+		delete(r.name)
+	}
+	delete(res^)
+}
 
 @(private = "package")
 api_search :: proc(
@@ -194,18 +211,17 @@ api_search :: proc(
 ) -> (
 	results: []Api_Search_Result,
 ) {
-	context.allocator = mem.arena_allocator(&server.api_index.arena)
 	ndocs := len(server.api_index.docs)
 	vec := query_vectors(&server.api_index, query)
 	defer delete(vec)
 	scores := make([]Api_Search_Result, ndocs)
-
+	defer delete(scores)
 
 	for doc, i in server.api_index.docs {
 		score := dot_product(vec, doc.vec)
 		scores[i] = {
 			score = score,
-			name  = strings.clone(doc.name),
+			name  = doc.name,
 			index = i,
 		}
 	}

@@ -6,7 +6,7 @@ import "core:mem"
 import "core:strings"
 
 evaluate_tool :: proc(server: ^Server, code: string) -> (output: string, ok: bool = true) {
-	return lua_evaluate(&server.sandbox, server.apis[:], server.setups[:], code)
+	return lua_evaluate(server.apis[:], server.setups[:], code)
 }
 
 HELP_TEXT :: #load("etc/help.md")
@@ -27,6 +27,7 @@ search_tool :: proc(
 ) {
 	count := math.clamp(count, 1, 10)
 	results := api_search(server, query, count)
+	defer destroy_api_search_results(&results)
 	ob := strings.builder_make()
 	defer strings.builder_destroy(&ob)
 

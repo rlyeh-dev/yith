@@ -1,6 +1,8 @@
 package miskatonic_mcp
 
 import "core:fmt"
+import "core:mem"
+import "core:slice"
 import "core:strings"
 import "core:text/regex"
 
@@ -31,7 +33,7 @@ RETURN_B :: `^---@return (\w+)\s+(?:(\w+)\s+)?#\s*(.*)$` // optional name with #
 RETURN_C :: `^---@return (\w+)\s+(\w+)\s*(.*)$` // required name with optional comment
 
 // enum values, could split on | and strip quotes but tokenize as prose is same
-SPLITME_ENUM :: `^(?:\S+\|)+\S+$`
+ENUM :: `^(?:\S+\|)+\S+$`
 
 // ignore these they're boring
 BORING_TYPES: [11]string : {
@@ -48,79 +50,56 @@ BORING_TYPES: [11]string : {
 	`userdata`,
 }
 
-@(private = "file")
-rgx_class, rgx_field, rgx_param, rgx_func_def, rgx_func_exp, rgx_return_a, rgx_return_b, rgx_return_c, rgx_splitme: regex.Regular_Expression
-@(private = "file")
-regexes_initialized := false
-
-@(private = "file")
-init_regexes :: proc() {
-	if regexes_initialized {return}
-	err: regex.Error
-	if rgx_class, err = regex.create(CLASS); err != nil {
-		panic(fmt.aprintf("fix your regex (class): %s", err))
-	}
-	if rgx_field, err = regex.create(FIELD); err != nil {
-		panic(fmt.aprintf("fix your regex (field): %s", err))
-	}
-	if rgx_param, err = regex.create(PARAM); err != nil {
-		panic(fmt.aprintf("fix your regex (param): %s", err))
-	}
-	if rgx_func_def, err = regex.create(FN_DEF); err != nil {
-		panic(fmt.aprintf("fix your regex (func def): %s", err))
-	}
-	if rgx_func_exp, err = regex.create(FN_EXP); err != nil {
-		panic(fmt.aprintf("fix your regex (func expr): %s", err))
-	}
-	if rgx_return_a, err = regex.create(RETURN_A); err != nil {
-		panic(fmt.aprintf("fix your regex (return a): %s", err))
-	}
-	if rgx_return_b, err = regex.create(RETURN_B); err != nil {
-		panic(fmt.aprintf("fix your regex (return b): %s", err))
-	}
-	if rgx_return_c, err = regex.create(RETURN_C); err != nil {
-		panic(fmt.aprintf("fix your regex (return c): %s", err))
-	}
-	if rgx_splitme, err = regex.create(SPLITME_ENUM); err != nil {
-		panic(fmt.aprintf("fix your regex (enum): %s", err))
-	}
-	regexes_initialized = true
-}
-
-luadoc_tokenizing_cleanup :: proc() {
-	if !regexes_initialized {return}
-	regex.destroy_regex(rgx_class)
-	regex.destroy_regex(rgx_field)
-	regex.destroy_regex(rgx_param)
-	regex.destroy_regex(rgx_func_def)
-	regex.destroy_regex(rgx_func_exp)
-	regex.destroy_regex(rgx_return_a)
-	regex.destroy_regex(rgx_return_b)
-	regex.destroy_regex(rgx_return_c)
-	regex.destroy_regex(rgx_splitme)
-	regexes_initialized = false
-}
-
 tokenize_luadoc :: proc(
 	results: ^[dynamic]string,
 	documentation: string,
 	description: string = "",
 ) {
+	rgx_class, rgx_field, rgx_param, rgx_func_def, rgx_func_exp, rgx_return_a, rgx_return_b, rgx_return_c: regex.Regular_Expression
+	err: regex.Error
+	if rgx_class, err = regex.create(CLASS); err != nil {
+		panic(fmt.aprintf("fix your regex (class): %w", err))
+	}
+	defer regex.destroy(rgx_class)
+	if rgx_field, err = regex.create(FIELD); err != nil {
+		panic(fmt.aprintf("fix your regex (field): %w", err))
+	}
+	defer regex.destroy(rgx_field)
+	if rgx_param, err = regex.create(PARAM); err != nil {
+		panic(fmt.aprintf("fix your regex (param): %w", err))
+	}
+	defer regex.destroy(rgx_param)
+	if rgx_func_def, err = regex.create(FN_DEF); err != nil {
+		panic(fmt.aprintf("fix your regex (func def): %w", err))
+	}
+	defer regex.destroy(rgx_func_def)
+	if rgx_func_exp, err = regex.create(FN_EXP); err != nil {
+		panic(fmt.aprintf("fix your regex (func expr): %w", err))
+	}
+	defer regex.destroy(rgx_func_exp)
+	if rgx_return_a, err = regex.create(RETURN_A); err != nil {
+		panic(fmt.aprintf("fix your regex (return a): %w", err))
+	}
+	defer regex.destroy(rgx_return_a)
+	if rgx_return_b, err = regex.create(RETURN_B); err != nil {
+		panic(fmt.aprintf("fix your regex (return b): %w", err))
+	}
+	defer regex.destroy(rgx_return_b)
+	if rgx_return_c, err = regex.create(RETURN_C); err != nil {
+		panic(fmt.aprintf("fix your regex (return c): %w", err))
+	}
+	defer regex.destroy(rgx_return_c)
+
+	cap := regex.preallocate_capture()
+	defer regex.destroy(cap)
+
 	tokenize_prose(results, description)
 
 	lines := strings.split_lines(documentation)
 	defer delete(lines)
 
-	init_regexes()
-
-	cap := regex.preallocate_capture()
-	defer regex.destroy_capture(cap)
-
 	matched: bool
-
-
 	for line in lines {
-		// fmt.printfln("\n#### TEST %s", line)
 		if _, matched = regex.match(rgx_class, line, &cap); matched {
 			tokenize_identifier(results, cap.groups[1])
 			continue
@@ -182,6 +161,9 @@ tokenize_luadoc :: proc(
 		tokenize_prose(results, line)
 	}
 
+	for i in 0 ..< len(results) {
+		results[i] = strings.clone(results[i])
+	}
 
 	return
 }
@@ -204,7 +186,7 @@ tokenize_prose :: proc(results: ^[dynamic]string, str: string) {
 
 		if is_max || is_sep {
 			if len(substr) > 2 {
-				append(results, strings.clone(substr))
+				append(results, substr)
 			}
 			from = i
 		}
@@ -226,15 +208,19 @@ tokenize_identifier :: proc(results: ^[dynamic]string, str: string) {
 
 tokenize_type :: proc(results: ^[dynamic]string, str: string) {
 	cap := regex.preallocate_capture()
-	defer regex.destroy_capture(cap)
-
+	defer regex.destroy(cap)
+	rgx_enum: regex.Regular_Expression
+	err: regex.Error
+	if rgx_enum, err = regex.create(ENUM); err != nil {
+		panic(fmt.aprintf("fix your regex (enum): %w", err))
+	}
 	matched: bool
 
 	for v in BORING_TYPES {
 		if str == v {return}
 	}
 
-	if _, matched = regex.match(rgx_splitme, str, &cap); matched {
+	if _, matched = regex.match(rgx_enum, str, &cap); matched {
 		tokenize_prose(results, str) // prose basically does what we need here anyway
 		return
 	}
