@@ -5,18 +5,25 @@ import "core:math"
 import "core:mem"
 import "core:strings"
 
-evaluate_tool :: proc(server: ^Server, code: string) -> (output: string, ok: bool) {
+evaluate_tool :: proc(server: ^Server, code: string) -> (output: string, ok: bool = true) {
 	return lua_evaluate(&server.sandbox, server.apis[:], server.setups[:], code)
+}
+
+HELP_TEXT :: #load("etc/help.md")
+
+help_tool :: proc(server: ^Server) -> (output: string, ok: bool = true) {
+	output = strings.clone(transmute(string)HELP_TEXT)
+	return
 }
 
 search_tool :: proc(
 	server: ^Server,
 	query: string,
-	descs := true,
 	count: int = 3,
+	descs := false,
 ) -> (
 	output: string,
-	ok: bool,
+	ok: bool = true,
 ) {
 	count := math.clamp(count, 1, 10)
 	results := api_search(server, query, count)
@@ -27,17 +34,16 @@ search_tool :: proc(
 	for result in results {
 		if descs {
 			desc := server.apis[result.index].description
-			fmt.sbprintfln(&ob, " * `%s`: %s (score: %.3f)", result.name, desc, result.score)
+			fmt.sbprintfln(&ob, " * `%s` relevance %.3f: %s ", result.name, result.score, desc)
 		} else {
-			fmt.sbprintfln(&ob, " * `%s`: %s (score: %.3f)", result.name, result.score)
+			fmt.sbprintfln(&ob, " * `%s` relevance %.3f", result.name, result.score)
 		}
 	}
 	output = strings.clone(strings.to_string(ob))
-	ok = true
 	return
 }
 
-docs_tool :: proc(server: ^Server, func_name: string) -> (output: string, ok: bool) {
+docs_tool :: proc(server: ^Server, func_name: string) -> (output: string, ok: bool = true) {
 	ob := strings.builder_make()
 	defer strings.builder_destroy(&ob)
 	if api_idx, found := server.api_names[func_name]; found {
@@ -45,7 +51,6 @@ docs_tool :: proc(server: ^Server, func_name: string) -> (output: string, ok: bo
 		fmt.sbprintfln(&ob, "API docs for `%s`:\nDescription: %s\n", func_name, api.description)
 		fmt.sbprintfln(&ob, "```lua\n%s\n```\n", api.docs)
 		output = strings.clone(strings.to_string(ob))
-		ok = true
 		return
 	}
 	fmt.sbprintfln(&ob, "No Lua API named `%s` could be found")
@@ -61,7 +66,7 @@ list_tool :: proc(
 	per_page := 25,
 ) -> (
 	output: string,
-	ok: bool,
+	ok: bool = true,
 ) {
 	per_page := math.clamp(per_page, 1, 50)
 	ob := strings.builder_make()
@@ -78,14 +83,9 @@ list_tool :: proc(
 
 	last := math.min(first + per_page - 1, api_max_idx)
 
-	fmt.sbprintfln(
-		&ob,
-		"# Available Lua API Calls: (page %d: functions %d-%d of %d)",
-		page,
-		first + 1,
-		last + 1,
-		api_count,
-	)
+	lst_hdr :: "# Available Lua API Calls: (page %d: functions %d-%d of %d)"
+	fmt.sbprintfln(&ob, lst_hdr, page, first + 1, last + 1, api_count)
+
 	for idx in first ..= last {
 		api := server.apis[idx]
 		if descs {
@@ -102,6 +102,5 @@ list_tool :: proc(
 	}
 
 	output = strings.clone(strings.to_string(ob))
-	ok = true
 	return
 }

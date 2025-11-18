@@ -53,21 +53,36 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 
 	when #config(search_debug, true) {
 		srch_qry :: "weather fahrenheit hello report kelvin cherry orphan mercury mars balloon"
-		srch_res, srch_ok := mcp.search_tool(server, srch_qry, 2)
+		srch_res, srch_ok := mcp.search_tool(server, srch_qry, 2, descs = false)
 		defer delete(srch_res)
 		fmt.eprintfln(
-			"\n\n-----\nSearch tool: %s (%s)",
+			"\n\n-----\nSearch tool: %s (%s) (no descriptions)",
 			srch_qry,
 			srch_ok ? "succeeded" : "failed",
 		)
 		fmt.eprint(srch_res)
+		srch_qry_2 :: "weather mercury kelvin celsius fahrenheit conditions"
+		srch_res_2, srch_ok_2 := mcp.search_tool(server, srch_qry_2, count = 3, descs = true)
+		defer delete(srch_res_2)
+		fmt.eprintfln(
+			"\n\n-----\nSearch tool: %s (%s) (with descriptions)",
+			srch_qry_2,
+			srch_ok_2 ? "succeeded" : "failed",
+		)
+		fmt.eprint(srch_res_2)
 	}
 
 	when #config(list_debug, true) {
-		list_res, list_ok := mcp.list_tool(server)
-		defer delete(list_res)
-		fmt.eprintfln("\n\n-----\nList Tool: %s", list_ok ? "succeeded" : "failed")
-		fmt.eprint(list_res)
+		fmt.eprintln("\n\n----- List tool\n")
+		p := 0
+		for {
+			p += 1
+			list_res, list_ok := mcp.list_tool(server, descs = p == 1, page = p, per_page = 3)
+			defer delete(list_res)
+			fmt.eprintfln("-> List Tool: %s (page %d)", list_ok ? "succeeded" : "failed", p)
+			fmt.eprint(list_res)
+			if !list_ok {break}
+		}
 	}
 
 	when #config(docs_debug, true) {
@@ -75,6 +90,13 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 		defer delete(docs_res)
 		fmt.eprintfln("\n\n-----\nDocs Tool: %s", docs_ok ? "succeeded" : "failed")
 		fmt.eprint(docs_res)
+	}
+
+	when #config(help_debug, true) {
+		help, help_ok := mcp.help_tool(server)
+		defer delete(help)
+		fmt.eprintfln("\n\n-----\nHelp Tool: %s", help_ok ? "succeeded" : "failed")
+		fmt.eprint(help)
 	}
 
 }
@@ -119,9 +141,10 @@ main :: proc() {
 	setup_interplanetary_weather(&server)
 	setup_manual_apis(&server)
 
-	mcp.build_api_index(&server)
 
 	when ODIN_DEBUG {
+		// complete_setup is normally run by server start, but need it for our debug tests
+		mcp.complete_setup(&server)
 		print_extra_debug_info(&server)
 	}
 

@@ -20,14 +20,15 @@ destroy_api :: proc(api: ^Api) {
 }
 
 Server :: struct {
-	name:        string,
-	description: string,
-	version:     string,
-	sandbox:     Sandbox,
-	apis:        [dynamic]Api,
-	api_names:   map[string]int,
-	setups:      [dynamic]Lua_Setup,
-	api_index:   Tfidf,
+	name:            string,
+	description:     string,
+	version:         string,
+	sandbox:         Sandbox,
+	apis:            [dynamic]Api,
+	api_names:       map[string]int,
+	setups:          [dynamic]Lua_Setup,
+	api_index:       Tfidf,
+	setup_completed: bool,
 }
 
 destroy_server :: proc(server: ^Server) {
@@ -92,4 +93,11 @@ make_server :: proc(
 ) {
 	init_server(&server, name, description, version, api_search_arena_size, sandbox_arena_size)
 	return
+}
+
+complete_setup :: proc(server: ^Server) {
+	if !server.setup_completed {
+		build_api_index(server)
+	}
+	server.setup_completed = true
 }
