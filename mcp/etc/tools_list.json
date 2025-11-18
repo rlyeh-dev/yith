@@ -1,0 +1,85 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "name": "evaluate",
+        "title": "lua code evaluator",
+        "description": "write lua code to run using the api found using the search / list / docs tools",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "lua code to evaluate. use print() to control what your output text is."
+            }
+          },
+          "required": ["code"]
+        }
+      },
+      {
+        "name": "help",
+        "title": "detailed help for this MCP",
+        "description": "full high level documentation of this MCP, and the lua sandbox you may use is provided here. Also available as api_help() in lua evaluation.",
+        "inputSchema": {}
+      },
+      {
+        "name": "search",
+        "title": "lua api search",
+        "description": "tf-idf powered search across the entire api surface of available code. returns name, description, and score only. use docs tool to fetch docs for the tool you need. ",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "search query"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 3,
+              "description": "number of results to return."
+            },
+            "descriptions": {
+              "type": "boolean",
+              "description": "include descriptions"
+            }
+          },
+          "required": ["query"]
+        }
+      },
+      {
+        "name": "list",
+        "title": "lua api list",
+        "description": "List all available api calls. Pagination not supported, you will receive name (and optionally description) of every function",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "descriptions": {
+              "type": "boolean",
+              "description": "include descriptions"
+            }
+          },
+          "required": []
+        }
+      },
+      {
+        "name": "docs",
+        "title": "lua api docs",
+        "description": "fetch the luadoc documentation for any available lua api function",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "function": {
+              "type": "string",
+              "description": "name of function to fetch docs for"
+            }
+          },
+          "required": ["function"]
+        }
+      }
+    ]
+  }
+}

@@ -5,6 +5,7 @@ import back "../../vendor/back"
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:path/filepath"
 import "core:strconv"
 import "core:strings"
 import "core:terminal/ansi"
@@ -21,6 +22,7 @@ INSPECT_SEARCH :: #config(inspect_search, false) || INSPECT_ALL
 INSPECT_LIST :: #config(inspect_list, false) || INSPECT_ALL
 INSPECT_DOCS :: #config(inspect_docs, false) || INSPECT_ALL
 INSPECT_HELP :: #config(inspect_help, false) || INSPECT_ALL
+INSPECT_PROTO :: #config(inspect_proto, false) || INSPECT_ALL
 INSPECT_ANY ::
 	INSPECT_ALL ||
 	INSPECT_EVAL ||
@@ -28,7 +30,8 @@ INSPECT_ANY ::
 	INSPECT_SEARCH ||
 	INSPECT_LIST ||
 	INSPECT_DOCS ||
-	INSPECT_HELP
+	INSPECT_HELP ||
+	INSPECT_PROTO
 
 main :: proc() {
 	when ODIN_DEBUG {
@@ -61,6 +64,13 @@ main :: proc() {
 		// complete_setup is normally run by server start, but need it for our inspects
 		mcp.complete_setup(&server)
 		print_extra_debug_info(&server)
+	}
+
+	if len(os.args) > 1 && os.args[1] == "stdio" {
+		mcp.start_stdio(&server)
+	} else {
+		basename := filepath.base(os.args[0])
+		fmt.eprintfln("run `%s stdio` to start the stdio server", basename)
 	}
 
 	mcp.destroy_server(&server)
@@ -121,6 +131,7 @@ check_eval :: proc(server: ^mcp.Server, title, code: string) {
 	debug_subhdrf("code for %s", title)
 	debug_dim(code)
 	out, ok := mcp.evaluate_tool(server, code)
+	defer delete(out)
 	debug_sucfailf(ok, "results of %s:", title)
 	fmt.eprintln(out)
 }
@@ -210,6 +221,28 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 		fmt.eprintln()
 	}
 
+
+	when #config(proto_debug, true) {
+		debug_hdr("PROTOCOL")
+		messages := [?]string {
+			`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true},"sampling":{},"elicitation":{}},"clientInfo":{"name":"ExampleClient","title":"Example Client Display Name","version":"1.0.0"}}}`,
+			`{"jsonrpc":"2.0","method":"notifications/initialized"}`,
+			`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"cursor":"optional-cursor-value"}}`,
+			`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"search","arguments":{"query":"weather pluto kelvin"}}}`,
+			`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list"}}`,
+			`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"evaluate", "arguments":{"code":"print(\"lol\")"}}}`,
+			`{"jsonrpc":"2.0","id":5,"method":"dance","params":{}}`,
+			`{"jsonrpc":"2.0","id":6,"method":"initialize","params":{"protocolVersion":1}}`,
+		}
+		for m in messages {
+			bytes, send, ok := mcp.handle_mcp_message(server, transmute([]u8)m)
+			defer delete(bytes)
+			debug_subhdrf("SENT: %s", m)
+			debug_sucfailf(ok, "RECEIVED (send:%w)", send)
+			debug_dim(transmute(string)bytes)
+			fmt.eprintln()
+		}
+	}
 }
 
 tracking_alloc_report_and_cleanup :: proc(track: ^mem.Tracking_Allocator) {

@@ -20,6 +20,7 @@ lua_evaluate :: proc(
 	output: string,
 	ok: bool,
 ) {
+	parent_allocator := context.allocator
 	arena: mem.Dynamic_Arena
 	mem.dynamic_arena_init(&arena)
 	defer mem.dynamic_arena_destroy(&arena)
@@ -77,8 +78,7 @@ lua_evaluate :: proc(
 		strings.write_string(&output_builder, "\n")
 	}
 
-	output = strings.to_string(output_builder)
-
+	output = strings.clone(strings.to_string(output_builder), parent_allocator)
 
 	return
 }
