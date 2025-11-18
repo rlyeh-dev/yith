@@ -16,16 +16,19 @@ help_tool :: proc(server: ^Server) -> (output: string, ok: bool = true) {
 	return
 }
 
+SEARCH_TOOL_DEFAULT_COUNT :: 3
+SEARCH_TOOL_DEFAULT_DESCS :: false
+
 search_tool :: proc(
 	server: ^Server,
 	query: string,
-	count: int = 3,
-	descs := false,
+	count: int = SEARCH_TOOL_DEFAULT_COUNT,
+	descs: bool = SEARCH_TOOL_DEFAULT_DESCS,
 ) -> (
 	output: string,
 	ok: bool = true,
 ) {
-	count := math.clamp(count, 1, 10)
+	count := count == 0 ? SEARCH_TOOL_DEFAULT_COUNT : math.clamp(count, 1, 10)
 	results := api_search(server, query, count)
 	defer destroy_api_search_results(&results)
 	ob := strings.builder_make()
@@ -60,16 +63,21 @@ docs_tool :: proc(server: ^Server, func_name: string) -> (output: string, ok: bo
 	return
 }
 
+LIST_TOOL_DEFAULT_PAGE :: 1
+LIST_TOOL_DEFAULT_PER_PAGE :: 25
+LIST_TOOL_DEFAULT_DESCS :: false
+
 list_tool :: proc(
 	server: ^Server,
-	descs := false,
-	page := 1,
-	per_page := 25,
+	descs: bool = LIST_TOOL_DEFAULT_DESCS,
+	page: int = LIST_TOOL_DEFAULT_PAGE,
+	per_page: int = LIST_TOOL_DEFAULT_PER_PAGE,
 ) -> (
 	output: string,
 	ok: bool = true,
 ) {
-	per_page := math.clamp(per_page, 1, 50)
+	per_page := per_page == 0 ? LIST_TOOL_DEFAULT_PER_PAGE : math.clamp(per_page, 1, 50)
+	page := page == 0 ? LIST_TOOL_DEFAULT_PAGE : math.clamp(page, 1, 1000)
 	ob := strings.builder_make()
 	defer strings.builder_destroy(&ob)
 
@@ -83,7 +91,6 @@ list_tool :: proc(
 	}
 
 	last := math.min(first + per_page - 1, api_max_idx)
-
 	lst_hdr :: "# Available Lua API Calls: (page %d: functions %d-%d of %d)"
 	fmt.sbprintfln(&ob, lst_hdr, page, first + 1, last + 1, api_count)
 
