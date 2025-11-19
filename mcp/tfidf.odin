@@ -130,7 +130,11 @@ build_doc_vectors :: proc(tfidf: ^Tfidf, doc: ^Document) {
 @(private = "package")
 query_vectors :: proc(tfidf: ^Tfidf, query: string) -> (vec: []f32) {
 	tokens := make([dynamic]string)
-	defer delete(tokens)
+	defer {
+		for tok in tokens {delete(tok)}
+		delete(tokens)
+	}
+
 	tokenize_prose(&tokens, query)
 
 	vec = make([]f32, len(tfidf.vocab.word_to_index))
@@ -168,14 +172,15 @@ dot_product :: proc(a, b: []f32) -> (dot: f32) {
 }
 
 @(private = "package")
-add_api_to_index :: proc(tfidf: ^Tfidf, name, docs, description: string) {
+add_api_to_index :: proc(tfidf: ^Tfidf, name, description, docs: string) {
 	tokens := make([dynamic]string)
-	tokenize_luadoc(&tokens, docs, description)
+	defer delete(tokens)
+	tokenize_luadoc(&tokens, documentation = docs, description = description)
 	id := len(tfidf.docs) + 1
 	doc := Document {
 		id     = id,
 		name   = strings.clone(name),
-		tokens = tokens[:],
+		tokens = slice.clone(tokens[:]),
 	}
 	append(&tfidf.docs, doc)
 }

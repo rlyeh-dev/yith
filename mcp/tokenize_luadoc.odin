@@ -101,6 +101,16 @@ tokenize_luadoc :: proc(
 
 	matched: bool
 	for line in lines {
+		if len(line) == 0 {
+			// skip empty lines early
+			continue
+		}
+
+		if strings.starts_with(line, "---@diagnostic") {
+			// disagnostic lines dont need indexing
+			continue
+		}
+
 		if _, matched = regex.match(rgx_class, line, &cap); matched {
 			tokenize_identifier(results, cap.groups[1])
 			continue
@@ -153,17 +163,8 @@ tokenize_luadoc :: proc(
 			continue
 		}
 
-		if strings.starts_with(line, "--") {
-			// comment or doc comment, is prose
-			tokenize_prose(results, line)
-			continue
-		}
-
+		// anything else is probably prose
 		tokenize_prose(results, line)
-	}
-
-	for i in 0 ..< len(results) {
-		results[i] = strings.clone(results[i])
 	}
 
 	return
@@ -187,7 +188,7 @@ tokenize_prose :: proc(results: ^[dynamic]string, str: string) {
 
 		if is_max || is_sep {
 			if len(substr) > 2 {
-				append(results, substr)
+				append(results, strings.clone(substr))
 			}
 			from = i
 		}
@@ -215,6 +216,7 @@ tokenize_type :: proc(results: ^[dynamic]string, str: string) {
 	if rgx_enum, err = regex.create(ENUM); err != nil {
 		log.panicf("fix your regex (enum): %w", err)
 	}
+	defer regex.destroy(rgx_enum)
 	matched: bool
 
 	for v in BORING_TYPES {

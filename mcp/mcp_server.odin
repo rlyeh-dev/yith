@@ -49,7 +49,7 @@ register_api_docs :: proc(server: ^Server, name, description, docs: string) {
 	}
 	append(&server.api_docs, rec)
 	server.api_names[strings.clone(name)] = len(server.api_docs) - 1
-	add_api_to_index(&server.api_index, name, description, docs)
+	add_api_to_index(&server.api_index, name = name, description = description, docs = docs)
 }
 
 register_sandbox_setup :: proc(server: ^Server, setup_handler: Sandbox_Setup) {
