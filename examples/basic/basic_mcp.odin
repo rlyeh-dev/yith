@@ -31,9 +31,9 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 		fmt.eprintln("---------------------------- TF-IDF DEBUG:\n\n")
 		for doc, idx in &server.api_index.docs {
 			fmt.eprintln("----------------------------")
-			fmt.eprintfln("-> api function: %s", server.apis[idx].name)
-			fmt.eprintfln("-> api desc: %s", server.apis[idx].description)
-			fmt.eprintfln("-> api docs:\n%s", server.apis[idx].docs)
+			fmt.eprintfln("-> api function: %s", server.api_docs[idx].name)
+			fmt.eprintfln("-> api desc: %s", server.api_docs[idx].description)
+			fmt.eprintfln("-> api docs:\n%s", server.api_docs[idx].docs)
 			fmt.eprintfln("-> scanned api: %w\n\n", doc)
 		}
 		for word, idx in &server.api_index.vocab.words {

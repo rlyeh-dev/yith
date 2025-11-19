@@ -16,22 +16,17 @@ Food_Service_Output :: struct {
 }
 
 setup_food_service :: proc(server: ^mcp.Server) {
-	NAME :: "simple_food_service"
-	mcp.register_api(
-		server,
-		name = NAME,
-		description = "Gives you some of your favorite food",
-		docs = #load("food.lua"),
-		setup = proc(state: ^lua.State) {
-			mcp.register_typed_lua_handler(
-				state,
-				Food_Service_Input,
-				Food_Service_Output,
-				NAME,
-				food_service_tool,
-			)
-		},
-	)
+	name :: "simple_food_service"
+	description :: "Gives you some of your favorite food"
+	docs: string : #load("food.lua")
+	In :: Food_Service_Input
+	Out :: Food_Service_Output
+
+	mcp.register_api_docs(server, name, description, docs)
+
+	mcp.register_lua_setup(server, proc(state: ^lua.State) {
+		mcp.register_typed_lua_handler(state, In, Out, name, food_service_tool)
+	})
 }
 
 food_service_tool :: proc(

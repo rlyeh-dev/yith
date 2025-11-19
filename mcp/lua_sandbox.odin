@@ -10,14 +10,7 @@ import lua "vendor:lua/5.4"
 Lua_Setup :: #type proc(state: ^lua.State)
 
 @(private)
-lua_evaluate :: proc(
-	apis: []Api,
-	setup_procs: []Lua_Setup,
-	lua_code: string,
-) -> (
-	output: string,
-	ok: bool,
-) {
+lua_evaluate :: proc(setup_procs: []Lua_Setup, lua_code: string) -> (output: string, ok: bool) {
 	arena: mem.Dynamic_Arena
 	mem.dynamic_arena_init(&arena)
 	defer mem.dynamic_arena_destroy(&arena)
@@ -40,10 +33,6 @@ lua_evaluate :: proc(
 		setup_proc(state)
 	}
 
-	for api in apis {
-		api.setup(state)
-	}
-
 	lua.L_dostring(state, #load("etc/print_harness.lua"))
 
 	code_cstr := strings.clone_to_cstring(lua_code)
@@ -52,7 +41,6 @@ lua_evaluate :: proc(
 
 	ok = lua.L_dostring(state, code_cstr) == 0
 	if !ok {
-		// will be appended to the code below
 		err_str = strings.clone_from_cstring(lua.tostring(state, -1))
 		lua.pop(state, 1)
 	}

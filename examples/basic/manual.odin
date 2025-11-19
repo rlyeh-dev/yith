@@ -7,86 +7,52 @@ import "core:mem"
 import "core:strings"
 import lua "vendor:lua/5.4"
 
-MyInput :: struct {
+setup_manual_apis :: proc(server: ^mcp.Server) {
+	// the same api function, 3 different ways:
+	// 1. (`t_*`) automatic lua wrapper, which uses arena allocator and automatic input/output (un)marshaling
+	// 2. (`m_*`) manual lua wrapper, but using the arena allocator and automatic input/output (un)marshaling
+	// 3. (`r_*`) manual lua wrapper, manual memory management, manually convert between input/output <-> lua stack
+	//
+	// the handler from #1 (`hello_goodbye`) is used by the other two
+	// #2 does the exact same thing that the register_typed_lua_handler does
+
+	t_name :: "hello_goodbye_auto"
+	t_description :: "Hello/Goodbye with typed lua registry helper"
+	t_docs := build_hg_docs(t_name)
+	defer delete(t_docs)
+
+	m_name :: "hello_goodbye_marshaled"
+	m_description :: "Hello/Goodbye with marshaling helpers"
+	m_docs := build_hg_docs(m_name)
+	defer delete(m_docs)
+
+	r_name :: "hello_goodbye_raw_lua"
+	r_description :: "Hello/Goodbye with manual lua stack tomfoolery"
+	r_docs := build_hg_docs(r_name)
+	defer delete(r_docs)
+
+	mcp.register_api_docs(server, t_name, t_description, t_docs)
+	mcp.register_api_docs(server, m_name, m_description, m_docs)
+	mcp.register_api_docs(server, r_name, r_description, r_docs)
+
+	mcp.register_lua_setup(server, proc(state: ^lua.State) {
+		mcp.register_typed_lua_handler(state, Hi_Bye_In, Hi_Bye_Out, t_name, hello_goodbye)
+		lua.register(state, m_name, hello_goodbye_marshaled)
+		lua.register(state, r_name, hello_goodbye_raw_lua)
+	})
+}
+
+Hi_Bye_In :: struct {
 	hello:   string,
 	goodbye: string,
 }
 
-MyOutput :: struct {
+Hi_Bye_Out :: struct {
 	hi:  string,
 	bye: string,
 }
 
-
-setup_manual_apis :: proc(server: ^mcp.Server) {
-	MANUAL_DOCS_MARSHALED :: `
----@class Input
----@field hello string
----@field goodbye string
-
----@class Output
----@field hi string
----@field bye string
-
----helps you say hello and goodbye to me and me say hi and bye to you
----@param params Input
----@return Output
-function hello_goodbye_marshaled(params) end
-
--- example:
-local res = hello_goodbye_marshaled({ hello = "hello my good friend", goodbye = "farewell babe" })
-print("hi:", res.hi)
-print("bye:", res.bye)
-`
-
-
-	MANUAL_DOCS_RAW_LUA :: `
----@class Input
----@field hello string
----@field goodbye string
-
----@class Output
----@field hi string
----@field bye string
-
----helps you say hello and goodbye to me and me say hi and bye to you
----@param params Input
----@return Output
-function hello_goodbye_raw_lua(params) end
-
--- example:
-local res = hello_goodbye_raw_lua({ hello = "hey good luck with that lua stack", goodbye = "so long hope you didnt mess up your memory" })
-print("hi:", res.hi)
-print("bye:", res.bye)
-`
-
-
-	TOOL_MARSHALED :: "hello_goodbye_marshaled"
-
-	mcp.register_api(
-		server,
-		TOOL_MARSHALED,
-		"Hello/Goodbye with marshaling helpers",
-		MANUAL_DOCS_MARSHALED,
-		proc(state: ^lua.State) {
-			lua.register(state, TOOL_MARSHALED, hello_goodbye_with_marshaling)
-		},
-	)
-
-	TOOL_RAW_LUA :: "hello_goodbye_raw_lua"
-
-	mcp.register_api(
-		server,
-		TOOL_RAW_LUA,
-		"Hello/Goodbye with manual lua stack tomfoolery",
-		MANUAL_DOCS_RAW_LUA,
-		proc(state: ^lua.State) {
-			lua.register(state, TOOL_RAW_LUA, hello_goodbye_totally_manual)
-		},
-	)
-}
-
-my_call :: proc(input: MyInput) -> (output: MyOutput, error: string) {
+hello_goodbye :: proc(input: Hi_Bye_In) -> (output: Hi_Bye_Out, error: string) {
 	if input.hello == "NO" || input.goodbye == "NO" {
 		error = "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
 		return
@@ -96,7 +62,7 @@ my_call :: proc(input: MyInput) -> (output: MyOutput, error: string) {
 	return
 }
 
-hello_goodbye_with_marshaling :: proc "c" (state: ^lua.State) -> i32 {
+hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 	// get our arena allocator out of lua
 	context = mcp.context_with_arena_from_lua(state)
 	// can also do this:
@@ -104,34 +70,34 @@ hello_goodbye_with_marshaling :: proc "c" (state: ^lua.State) -> i32 {
 	// context.allocator = mcp.arena_from_lua(state)
 
 	ok: bool
-	my_in: MyInput
+	params: Hi_Bye_In
 
-	my_in, ok = mcp.unmarshal_lua_table(state, -1, MyInput)
+	params, ok = mcp.unmarshal_lua_table(state, -1, Hi_Bye_In)
 	if !ok {
 		lua.pushstring(state, "could not unmarshal input")
 		lua.error(state)
 	}
 
-	my_out, err := my_call(my_in)
+	result, err := hello_goodbye(params)
 
 	if err != "" {
 		lua.pushstring(state, strings.clone_to_cstring(err))
 		lua.error(state)
 	}
 
-	ok = mcp.marshal_lua_table(state, MyOutput, &my_out)
+	ok = mcp.marshal_lua_table(state, Hi_Bye_Out, &result)
 	if !ok {
 		when ODIN_DEBUG {
-			fmt.eprintfln("could not marshal output: %w", my_out)
+			fmt.eprintfln("could not marshal output: %w", result)
 		}
-		lua.pushstring(state, "error marshaling my_call output")
+		lua.pushstring(state, "error marshaling hello_goodbye output")
 		lua.error(state)
 	}
 
 	return 1
 }
 
-hello_goodbye_totally_manual :: proc "c" (state: ^lua.State) -> i32 {
+hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 	// dont use our arena allocator! make sure to clean up after yourself!
 	// in fact we'll use a tracking allocator here in this example just
 	// for "fun" and definitely not because i had to fix a bug here 👀
@@ -156,38 +122,68 @@ hello_goodbye_totally_manual :: proc "c" (state: ^lua.State) -> i32 {
 		mem.tracking_allocator_destroy(&track)
 	}
 
-	my_in: MyInput
+	params: Hi_Bye_In
 	lua.L_checktype(state, 1, i32(lua.TTABLE))
 
 	lua.getfield(state, -1, "hello")
-	my_in.hello = strings.clone_from_cstring(lua.tostring(state, -1))
+	hello := strings.clone_from_cstring(lua.tostring(state, -1))
+	defer delete(hello)
+	params.hello = hello
 	lua.pop(state, 1)
 
 	lua.getfield(state, -1, "goodbye")
-	my_in.goodbye = strings.clone_from_cstring(lua.tostring(state, -1))
+	goodbye := strings.clone_from_cstring(lua.tostring(state, -1))
+	defer delete(goodbye)
+	params.goodbye = goodbye
 	lua.pop(state, 1)
 
-	my_out, err := my_call(my_in)
-	delete(my_in.hello)
-	delete(my_in.goodbye)
+	result, err := hello_goodbye(params)
+	defer delete(result.hi)
+	defer delete(result.bye)
 
 	if err != "" {
 		lua.pushstring(state, cstring(raw_data(err)))
-		if my_out.hi != "" do delete(my_out.hi)
-		if my_out.bye != "" do delete(my_out.bye)
+		if result.hi != "" do delete(result.hi)
+		if result.bye != "" do delete(result.bye)
 		lua.error(state) // lua.error longjumps so we cant rely on defer
 	}
 
 	lua.createtable(state, 0, 2)
 
-	lua.pushstring(state, cstring(raw_data(my_out.hi)))
+	lua.pushstring(state, cstring(raw_data(result.hi)))
 	lua.setfield(state, -2, "hi")
 
-	lua.pushstring(state, cstring(raw_data(my_out.bye)))
+	lua.pushstring(state, cstring(raw_data(result.bye)))
 	lua.setfield(state, -2, "bye")
 
-	delete(my_out.hi)
-	delete(my_out.bye)
 
 	return 1
 }
+
+
+build_hg_docs :: proc(name: string) -> string {
+	// ignore the `allocated`. it will always allocate in this case, because we know our
+	// constant string "HELLO_GOODBYE" appears in the also constant HELLO_GOODBYE_DOCS
+	val, _ := strings.replace_all(HELLO_GOODBYE_DOCS, "HELLO_GOODBYE", name)
+	return val
+}
+
+HELLO_GOODBYE_DOCS :: `
+---@class Input
+---@field hello string
+---@field goodbye string
+
+---@class Output
+---@field hi string
+---@field bye string
+
+---helps you say hello and goodbye to me and me say hi and bye to you
+---@param params Input
+---@return Output
+function HELLO_GOODBYE(params) end
+
+-- example:
+local res = HELLO_GOODBYE({ hello = "hello my good friend", goodbye = "farewell babe" })
+print("hi:", res.hi)
+print("bye:", res.bye)
+`

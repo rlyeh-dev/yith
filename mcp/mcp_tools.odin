@@ -2,11 +2,10 @@ package miskatonic_mcp
 
 import "core:fmt"
 import "core:math"
-import "core:mem"
 import "core:strings"
 
 evaluate_tool :: proc(server: ^Server, code: string) -> (output: string, ok: bool = true) {
-	return lua_evaluate(server.apis[:], server.setups[:], code)
+	return lua_evaluate(server.setups[:], code)
 }
 
 HELP_TEXT :: #load("etc/help.md")
@@ -37,7 +36,7 @@ search_tool :: proc(
 	fmt.sbprintfln(&ob, "Found %d results: ", len(results))
 	for result in results {
 		if descs {
-			desc := server.apis[result.index].description
+			desc := server.api_docs[result.index].description
 			fmt.sbprintfln(&ob, " * `%s` relevance %.3f: %s ", result.name, result.score, desc)
 		} else {
 			fmt.sbprintfln(&ob, " * `%s` relevance %.3f", result.name, result.score)
@@ -51,7 +50,7 @@ docs_tool :: proc(server: ^Server, func_name: string) -> (output: string, ok: bo
 	ob := strings.builder_make()
 	defer strings.builder_destroy(&ob)
 	if api_idx, found := server.api_names[func_name]; found {
-		api := server.apis[api_idx]
+		api := server.api_docs[api_idx]
 		fmt.sbprintfln(&ob, "API docs for `%s`:\nDescription: %s\n", func_name, api.description)
 		fmt.sbprintfln(&ob, "```lua\n%s\n```\n", api.docs)
 		output = strings.clone(strings.to_string(ob))
@@ -81,7 +80,7 @@ list_tool :: proc(
 	ob := strings.builder_make()
 	defer strings.builder_destroy(&ob)
 
-	api_count := len(server.apis)
+	api_count := len(server.api_docs)
 	api_max_idx := api_count - 1
 	first := (page - 1) * per_page
 	if first > api_max_idx {
@@ -95,7 +94,7 @@ list_tool :: proc(
 	fmt.sbprintfln(&ob, lst_hdr, page, first + 1, last + 1, api_count)
 
 	for idx in first ..= last {
-		api := server.apis[idx]
+		api := server.api_docs[idx]
 		if descs {
 			fmt.sbprintfln(&ob, " * `%s`: %s", api.name, api.description)
 		} else {
