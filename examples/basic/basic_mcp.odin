@@ -3,23 +3,73 @@ package basic_mcp
 import mcp "../../mcp"
 import "core:fmt"
 import "core:mem"
-import "core:slice"
+import "core:os"
+import "core:strconv"
+import "core:strings"
+import "core:terminal/ansi"
+
+get_columns :: proc() -> int {
+	cols: int = 80
+	c, ok := os.lookup_env("COLUMNS")
+	defer delete(c)
+	if !ok {return cols}
+	n, nok := strconv.parse_int(c)
+	return nok ? cols : n
+}
+
+debug_hdr :: proc(text: string) {
+	START :: ansi.CSI + ansi.BOLD + ";" + ansi.FG_CYAN + ansi.SGR
+	END :: ansi.CSI + ansi.RESET + ansi.SGR
+	longline := strings.repeat("#", get_columns())
+	defer delete(longline)
+	fmt_str := START + "\n%s\n##### %s\n\n" + END
+	fmt.eprintf(fmt_str, longline, text)
+}
+
+debug_subhdr :: proc(text: string) {
+	START :: ansi.CSI + ansi.BOLD + ";" + ansi.FG_CYAN + ansi.SGR
+	END :: ansi.CSI + ansi.RESET + ansi.SGR
+	fmt.eprintfln(START + "-> %s" + END, text)
+}
+
+debug_subhdrf :: proc(fmt_str: string, args: ..any) {
+	debug_subhdr(fmt.tprintf(fmt_str, ..args))
+}
+
+debug_dim :: proc(text: string) {
+	START :: ansi.CSI + ansi.FAINT + ansi.SGR
+	END :: ansi.CSI + ansi.RESET + ansi.SGR
+	fmt.eprintfln(START + "%s" + END, text)
+}
+
+debug_dimf :: proc(fmt_str: string, args: ..any) {
+	debug_dim(fmt.tprintf(fmt_str, ..args))
+}
+
+debug_sucfail :: proc(ok: bool, text: string) {
+	start := strings.concatenate(
+		{ansi.CSI + ansi.BOLD + ";", ok ? ansi.FG_GREEN : ansi.FG_RED, ansi.SGR},
+	)
+	defer delete(start)
+	END :: ansi.CSI + ansi.RESET + ansi.SGR
+	fmt.eprintfln("%s-> %s" + END, start, text)
+}
+
+debug_sucfailf :: proc(ok: bool, fmt_str: string, args: ..any) {
+	debug_sucfail(ok, fmt.tprintf(fmt_str, ..args))
+}
 
 check_eval :: proc(server: ^mcp.Server, title, code: string) {
-	fmt.eprintln("----------------------------")
-	fmt.eprintfln("EVAL TEST: %s", title)
-	fmt.eprintln("code to evaluate: ")
-	fmt.eprint(code)
-	fmt.eprintln()
+	debug_subhdrf("code for %s", title)
+	debug_dim(code)
 	out, ok := mcp.evaluate_tool(server, code)
-	fmt.eprintfln("STATUS OF %s: %s", title, ok ? "success" : "failure")
-	fmt.eprintln("result output:")
-	fmt.eprint(out)
-	fmt.eprintln()
+	debug_sucfailf(ok, "results of %s:", title)
+	fmt.eprintln(out)
 }
 
 print_extra_debug_info :: proc(server: ^mcp.Server) {
 	when #config(eval_debug, true) {
+		debug_hdr("EVAL")
 		check_eval(server, "basic (should succeed)", #load("eval_tests/basic.lua"))
 		check_eval(server, "cherry (should fail)", #load("eval_tests/cherry.lua"))
 		check_eval(server, "badarg (should fail)", #load("eval_tests/badarg.lua"))
@@ -28,8 +78,9 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 
 
 	when #config(tfidf_debug, false) {
-		fmt.eprintln("---------------------------- TF-IDF DEBUG:\n\n")
+		debug_hdr("TF-IDF")
 		for doc, idx in &server.api_index.docs {
+			debug_subhdrf("doc #%d", idx + 1)
 			fmt.eprintln("----------------------------")
 			fmt.eprintfln("-> api function: %s", server.api_docs[idx].name)
 			fmt.eprintfln("-> api desc: %s", server.api_docs[idx].description)
@@ -52,51 +103,52 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 	}
 
 	when #config(search_debug, true) {
+		debug_hdr("TOOL: SEARCH")
 		srch_qry :: "weather fahrenheit hello report kelvin cherry orphan mercury mars balloon"
 		srch_res, srch_ok := mcp.search_tool(server, srch_qry, 2, descs = false)
 		defer delete(srch_res)
-		fmt.eprintfln(
-			"\n\n-----\nSearch tool: %s (%s) (no descriptions)",
-			srch_qry,
-			srch_ok ? "succeeded" : "failed",
-		)
-		fmt.eprint(srch_res)
+		debug_sucfailf(srch_ok, "Search tool: %s (no descriptions)", srch_qry)
+		fmt.eprintln(srch_res)
+
 		srch_qry_2 :: "weather mercury kelvin celsius fahrenheit conditions"
 		srch_res_2, srch_ok_2 := mcp.search_tool(server, srch_qry_2, count = 3, descs = true)
 		defer delete(srch_res_2)
-		fmt.eprintfln(
-			"\n\n-----\nSearch tool: %s (%s) (with descriptions)",
-			srch_qry_2,
-			srch_ok_2 ? "succeeded" : "failed",
-		)
-		fmt.eprint(srch_res_2)
+		debug_sucfailf(srch_ok_2, "Search tool: %s (with descriptions)", srch_qry_2)
+		fmt.eprintln(srch_res_2)
 	}
 
 	when #config(list_debug, true) {
-		fmt.eprintln("\n\n----- List tool\n")
+		debug_hdr("TOOL: LIST")
 		p := 0
 		for {
 			p += 1
 			list_res, list_ok := mcp.list_tool(server, descs = p == 1, page = p, per_page = 3)
 			defer delete(list_res)
-			fmt.eprintfln("-> List Tool: %s (page %d)", list_ok ? "succeeded" : "failed", p)
-			fmt.eprint(list_res)
+			debug_sucfailf(list_ok, "page %d", p)
+			fmt.eprintln(list_res)
 			if !list_ok {break}
 		}
 	}
 
 	when #config(docs_debug, true) {
-		docs_res, docs_ok := mcp.docs_tool(server, "interplanetary_weather")
-		defer delete(docs_res)
-		fmt.eprintfln("\n\n-----\nDocs Tool: %s", docs_ok ? "succeeded" : "failed")
-		fmt.eprint(docs_res)
+		debug_hdr("TOOL: DOCS")
+		names := [?]string{"interplanetary_weather", "simple_food_service", "nonexistent"}
+		for name in names {
+			docs_res, docs_ok := mcp.docs_tool(server, name)
+			defer delete(docs_res)
+			debug_sucfailf(docs_ok, "Docs: %s", name)
+			debug_dim(docs_res)
+			fmt.eprintln()
+		}
 	}
 
 	when #config(help_debug, true) {
+		debug_hdr("TOOL: HELP")
 		help, help_ok := mcp.help_tool(server)
 		defer delete(help)
-		fmt.eprintfln("\n\n-----\nHelp Tool: %s", help_ok ? "succeeded" : "failed")
-		fmt.eprint(help)
+		debug_sucfail(help_ok, "results")
+		debug_dim(help)
+		fmt.eprintln()
 	}
 
 }
