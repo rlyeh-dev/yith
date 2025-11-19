@@ -7,10 +7,19 @@ import "core:reflect"
 import "core:strings"
 import lua "vendor:lua/5.4"
 
-Lua_Setup :: #type proc(state: ^lua.State)
+Sandbox :: struct {
+	lua_state: ^lua.State,
+}
+Sandbox_Setup :: #type proc(sandbox: Sandbox)
 
 @(private)
-lua_evaluate :: proc(setup_procs: []Lua_Setup, lua_code: string) -> (output: string, ok: bool) {
+lua_evaluate :: proc(
+	setup_procs: []Sandbox_Setup,
+	lua_code: string,
+) -> (
+	output: string,
+	ok: bool,
+) {
 	arena: mem.Dynamic_Arena
 	mem.dynamic_arena_init(&arena)
 	defer mem.dynamic_arena_destroy(&arena)
@@ -30,7 +39,7 @@ lua_evaluate :: proc(setup_procs: []Lua_Setup, lua_code: string) -> (output: str
 	lua.settop(state, 0)
 
 	for setup_proc in setup_procs {
-		setup_proc(state)
+		setup_proc(Sandbox{state})
 	}
 
 	lua.L_dostring(state, #load("etc/print_harness.lua"))
@@ -175,7 +184,7 @@ unmarshal_lua_table :: proc(
 	return
 }
 
-arena_from_lua :: proc(state: ^lua.State) -> (allocator: mem.Allocator) {
+arena_from_sandbox :: proc(state: ^lua.State) -> (allocator: mem.Allocator) {
 	lua.getfield(state, lua.REGISTRYINDEX, "arena")
 	arena := (^mem.Dynamic_Arena)(lua.touserdata(state, -1))
 	allocator = mem.dynamic_arena_allocator(arena)
@@ -183,14 +192,14 @@ arena_from_lua :: proc(state: ^lua.State) -> (allocator: mem.Allocator) {
 	return
 }
 
-context_with_arena_from_lua :: proc(state: ^lua.State) -> (ctx: runtime.Context) {
+context_with_arena_from_sandbox :: proc(state: ^lua.State) -> (ctx: runtime.Context) {
 	ctx = runtime.default_context()
-	ctx.allocator = arena_from_lua(state)
+	ctx.allocator = arena_from_sandbox(state)
 	return
 }
 
-register_typed_lua_handler :: proc(
-	state: ^lua.State,
+register_sandbox_function :: proc(
+	sandbox: Sandbox,
 	$In, $Out: typeid,
 	name: string,
 	handler: proc(_: In) -> (Out, string),
@@ -200,14 +209,14 @@ register_typed_lua_handler :: proc(
 		handler: proc(_: In) -> (Out, string),
 	}
 
-	wrapper_ptr := (^Wrapper)(lua.newuserdata(state, size_of(Wrapper)))
+	wrapper_ptr := (^Wrapper)(lua.newuserdata(sandbox.lua_state, size_of(Wrapper)))
 	wrapper_ptr^ = Wrapper {
 		name    = strings.clone(name),
 		handler = handler,
 	}
 
 	lua_wrapper :: proc "c" (state: ^lua.State) -> i32 {
-		context = context_with_arena_from_lua(state)
+		context = context_with_arena_from_sandbox(state)
 
 		wrapper := (^Wrapper)(lua.touserdata(state, lua.REGISTRYINDEX - 1))
 
@@ -254,8 +263,8 @@ register_typed_lua_handler :: proc(
 		return 1
 	}
 
-	lua.pushcclosure(state, lua_wrapper, 1)
+	lua.pushcclosure(sandbox.lua_state, lua_wrapper, 1)
 	name_cstr := strings.clone_to_cstring(name)
 	defer delete(name_cstr)
-	lua.setglobal(state, name_cstr)
+	lua.setglobal(sandbox.lua_state, name_cstr)
 }

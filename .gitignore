@@ -1,1 +1,4 @@
 *.dSYM
+
+# example binaries
+/examples/basic/basic

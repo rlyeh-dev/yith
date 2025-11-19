@@ -3,7 +3,6 @@ package basic_mcp
 import mcp "../../mcp"
 import "core:math/rand"
 import "core:strings"
-import lua "vendor:lua/5.4"
 
 Food_Service_Input :: struct {
 	food:  string,
@@ -24,8 +23,8 @@ setup_food_service :: proc(server: ^mcp.Server) {
 
 	mcp.register_api_docs(server, name, description, docs)
 
-	mcp.register_lua_setup(server, proc(state: ^lua.State) {
-		mcp.register_typed_lua_handler(state, In, Out, name, food_service_tool)
+	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
+		mcp.register_sandbox_function(sandbox, In, Out, name, food_service_tool)
 	})
 }
 

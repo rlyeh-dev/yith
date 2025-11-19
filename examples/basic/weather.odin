@@ -2,7 +2,6 @@ package basic_mcp
 
 import mcp "../../mcp"
 import "core:fmt"
-import lua "vendor:lua/5.4"
 
 Weather_Params :: struct {
 	location: string,
@@ -69,8 +68,8 @@ setup_interplanetary_weather :: proc(server: ^mcp.Server) {
 	Out :: Weather_Report_Extended
 
 	mcp.register_api_docs(server, name, description, docs)
-	mcp.register_lua_setup(server, proc(state: ^lua.State) {
-		mcp.register_typed_lua_handler(state, In, Out, name, interplanetary_weather)
+	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
+		mcp.register_sandbox_function(sandbox, In, Out, name, interplanetary_weather)
 	})
 }
 

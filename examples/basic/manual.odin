@@ -14,7 +14,11 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	// 3. (`r_*`) manual lua wrapper, manual memory management, manually convert between input/output <-> lua stack
 	//
 	// the handler from #1 (`hello_goodbye`) is used by the other two
-	// #2 does the exact same thing that the register_typed_lua_handler does
+	// #2 does the exact same thing that the register_sandbox_function does
+	//
+	// note that because we're doing raw lua stuff, we have to import vendor:lua/5.4 directly, matching what
+	// miskatonic_mcp uses internally. the other handlers in this basic example don't touch the lua instance
+	// directly
 
 	t_name :: "hello_goodbye_auto"
 	t_description :: "Hello/Goodbye with typed lua registry helper"
@@ -35,10 +39,10 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	mcp.register_api_docs(server, m_name, m_description, m_docs)
 	mcp.register_api_docs(server, r_name, r_description, r_docs)
 
-	mcp.register_lua_setup(server, proc(state: ^lua.State) {
-		mcp.register_typed_lua_handler(state, Hi_Bye_In, Hi_Bye_Out, t_name, hello_goodbye)
-		lua.register(state, m_name, hello_goodbye_marshaled)
-		lua.register(state, r_name, hello_goodbye_raw_lua)
+	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
+		mcp.register_sandbox_function(sandbox, Hi_Bye_In, Hi_Bye_Out, t_name, hello_goodbye)
+		lua.register(sandbox.lua_state, m_name, hello_goodbye_marshaled)
+		lua.register(sandbox.lua_state, r_name, hello_goodbye_raw_lua)
 	})
 }
 
@@ -64,10 +68,10 @@ hello_goodbye :: proc(input: Hi_Bye_In) -> (output: Hi_Bye_Out, error: string) {
 
 hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 	// get our arena allocator out of lua
-	context = mcp.context_with_arena_from_lua(state)
+	context = mcp.context_with_arena_from_sandbox(state)
 	// can also do this:
 	// context = runtime.default_context()
-	// context.allocator = mcp.arena_from_lua(state)
+	// context.allocator = mcp.arena_from_sandbox(state)
 
 	ok: bool
 	params: Hi_Bye_In

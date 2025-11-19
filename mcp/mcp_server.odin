@@ -20,7 +20,7 @@ Server :: struct {
 	version:         string,
 	api_names:       map[string]int,
 	api_docs:        [dynamic]Api_Docs,
-	setups:          [dynamic]Lua_Setup,
+	setups:          [dynamic]Sandbox_Setup,
 	api_index:       Tfidf,
 	setup_completed: bool,
 }
@@ -52,7 +52,7 @@ register_api_docs :: proc(server: ^Server, name, description, docs: string) {
 	add_api_to_index(&server.api_index, name, description, docs)
 }
 
-register_lua_setup :: proc(server: ^Server, setup_handler: Lua_Setup) {
+register_sandbox_setup :: proc(server: ^Server, setup_handler: Sandbox_Setup) {
 	append(&server.setups, setup_handler)
 }
 
