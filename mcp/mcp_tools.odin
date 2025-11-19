@@ -56,7 +56,7 @@ docs_tool :: proc(server: ^Server, func_name: string) -> (output: string, ok: bo
 		output = strings.clone(strings.to_string(ob))
 		return
 	}
-	fmt.sbprintfln(&ob, "No Lua API named `%s` could be found")
+	fmt.sbprintfln(&ob, "No Lua API named `%s` could be found", func_name)
 	output = strings.clone(strings.to_string(ob))
 	ok = false
 	return
