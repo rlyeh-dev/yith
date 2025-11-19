@@ -12,8 +12,29 @@ Sandbox :: struct {
 }
 Sandbox_Setup :: #type proc(sandbox: Sandbox)
 
+sandbox_print :: proc(sandbox: Sandbox, texts: ..string) {
+	state := sandbox.lua_state
+	lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
+
+	for text in texts {
+		nextidx := lua.rawlen(state, -1) + 1
+		ctext := strings.clone_to_cstring(text)
+		defer delete(ctext)
+		lua.pushstring(state, ctext)
+		lua.seti(state, -2, lua.Integer(nextidx))
+	}
+	lua.pop(state, 1)
+}
+
+sandbox_printf :: proc(sandbox: Sandbox, fmt_str: string, args: ..any) {
+	str := fmt.aprintf(fmt_str, ..args)
+	defer delete(str)
+	sandbox_print(sandbox, str)
+}
+
 @(private)
 lua_evaluate :: proc(
+	server: ^Server,
 	setup_procs: []Sandbox_Setup,
 	lua_code: string,
 ) -> (
@@ -22,7 +43,7 @@ lua_evaluate :: proc(
 ) {
 	parent_allocator := context.allocator
 	arena: mem.Dynamic_Arena
-	mem.dynamic_arena_init(&arena)
+	mem.dynamic_arena_init(&arena, alignment = 64)
 	defer mem.dynamic_arena_destroy(&arena)
 	context.allocator = mem.dynamic_arena_allocator(&arena)
 
@@ -31,6 +52,9 @@ lua_evaluate :: proc(
 
 	lua.pushlightuserdata(state, &arena)
 	lua.setfield(state, lua.REGISTRYINDEX, "arena")
+
+	lua.pushlightuserdata(state, server)
+	lua.setfield(state, lua.REGISTRYINDEX, "server")
 
 	lua.open_base(state)
 	lua.L_requiref(state, "string", lua.open_string, 1)
@@ -184,7 +208,31 @@ unmarshal_lua_table :: proc(
 	return
 }
 
-arena_from_sandbox :: proc(state: ^lua.State) -> (allocator: mem.Allocator) {
+@(private = "package")
+server_from_sandbox :: proc {
+	server_from_sandbox_box,
+	server_from_sandbox_lua,
+}
+@(private = "package")
+server_from_sandbox_box :: proc(sandbox: Sandbox) -> (server: ^Server) {
+	return server_from_sandbox_lua(sandbox.lua_state)
+}
+@(private = "package")
+server_from_sandbox_lua :: proc(state: ^lua.State) -> (server: ^Server) {
+	lua.getfield(state, lua.REGISTRYINDEX, "server")
+	server = (^Server)(lua.touserdata(state, -1))
+	lua.pop(state, 1)
+	return
+}
+
+arena_from_sandbox :: proc {
+	arena_from_sandbox_box,
+	arena_from_sandbox_lua,
+}
+arena_from_sandbox_box :: proc(sandbox: Sandbox) -> (allocator: mem.Allocator) {
+	return arena_from_sandbox_lua(sandbox.lua_state)
+}
+arena_from_sandbox_lua :: proc(state: ^lua.State) -> (allocator: mem.Allocator) {
 	lua.getfield(state, lua.REGISTRYINDEX, "arena")
 	arena := (^mem.Dynamic_Arena)(lua.touserdata(state, -1))
 	allocator = mem.dynamic_arena_allocator(arena)
@@ -192,7 +240,14 @@ arena_from_sandbox :: proc(state: ^lua.State) -> (allocator: mem.Allocator) {
 	return
 }
 
-context_with_arena_from_sandbox :: proc(state: ^lua.State) -> (ctx: runtime.Context) {
+context_with_arena_from_sandbox :: proc {
+	context_with_arena_from_sandbox_box,
+	context_with_arena_from_sandbox_lua,
+}
+context_with_arena_from_sandbox_box :: proc(sandbox: Sandbox) -> (ctx: runtime.Context) {
+	return context_with_arena_from_sandbox_lua(sandbox.lua_state)
+}
+context_with_arena_from_sandbox_lua :: proc(state: ^lua.State) -> (ctx: runtime.Context) {
 	ctx = runtime.default_context()
 	ctx.allocator = arena_from_sandbox(state)
 	return
@@ -202,11 +257,11 @@ register_sandbox_function :: proc(
 	sandbox: Sandbox,
 	$In, $Out: typeid,
 	name: string,
-	handler: proc(_: In) -> (Out, string),
+	handler: proc(_: In, sandbox: Sandbox) -> (Out, string),
 ) {
 	Wrapper :: struct {
 		name:    string,
-		handler: proc(_: In) -> (Out, string),
+		handler: proc(_: In, sandbox: Sandbox) -> (Out, string),
 	}
 
 	wrapper_ptr := (^Wrapper)(lua.newuserdata(sandbox.lua_state, size_of(Wrapper)))
@@ -232,8 +287,7 @@ register_sandbox_function :: proc(
 			lua.pushstring(state, lua_err_cstr)
 			lua.error(state)
 		}
-
-		result, err := wrapper.handler(params)
+		result, err := wrapper.handler(params, Sandbox{state})
 		if err != "" {
 			err_cstr := strings.clone_to_cstring(err)
 			defer delete(err_cstr)

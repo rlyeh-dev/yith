@@ -71,6 +71,7 @@ init_server :: proc(server: ^Server, name, description: string, version := "1.0.
 	server.version = strings.clone(version)
 	server.api_docs = make([dynamic]Api_Docs)
 	server.api_names = make(map[string]int)
+	add_builtin_apis(server)
 }
 
 make_server :: proc(name, description: string, version := "1.0.0") -> (server: Server) {

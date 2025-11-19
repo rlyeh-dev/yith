@@ -22,7 +22,10 @@
         "name": "help",
         "title": "detailed help for this MCP",
         "description": "full high level documentation of this MCP, and the lua sandbox you may use is provided here. Also available as api_help() in lua evaluation.",
-        "inputSchema": {}
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
       },
       {
         "name": "search",
@@ -72,12 +75,12 @@
         "inputSchema": {
           "type": "object",
           "properties": {
-            "function": {
+            "name": {
               "type": "string",
               "description": "name of function to fetch docs for"
             }
           },
-          "required": ["function"]
+          "required": ["name"]
         }
       }
     ]

@@ -5,7 +5,7 @@ import "core:math"
 import "core:strings"
 
 evaluate_tool :: proc(server: ^Server, code: string) -> (output: string, ok: bool = true) {
-	return lua_evaluate(server.setups[:], code)
+	return lua_evaluate(server, server.setups[:], code)
 }
 
 HELP_TEXT :: #load("etc/help.md")
@@ -22,7 +22,7 @@ help_tool :: proc(server: ^Server) -> (output: string, ok: bool = true) {
 	return
 }
 
-SEARCH_TOOL_DEFAULT_COUNT :: 3
+SEARCH_TOOL_DEFAULT_COUNT :: 5
 SEARCH_TOOL_DEFAULT_DESCS :: false
 
 search_tool :: proc(

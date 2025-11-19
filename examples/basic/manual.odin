@@ -56,7 +56,13 @@ Hi_Bye_Out :: struct {
 	bye: string,
 }
 
-hello_goodbye :: proc(input: Hi_Bye_In) -> (output: Hi_Bye_Out, error: string) {
+hello_goodbye :: proc(
+	input: Hi_Bye_In,
+	sandbox: mcp.Sandbox,
+) -> (
+	output: Hi_Bye_Out,
+	error: string,
+) {
 	if input.hello == "NO" || input.goodbye == "NO" {
 		error = "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
 		return
@@ -82,7 +88,7 @@ hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 		lua.error(state)
 	}
 
-	result, err := hello_goodbye(params)
+	result, err := hello_goodbye(params, mcp.Sandbox{state})
 
 	if err != "" {
 		lua.pushstring(state, strings.clone_to_cstring(err))
@@ -141,7 +147,7 @@ hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 	params.goodbye = goodbye
 	lua.pop(state, 1)
 
-	result, err := hello_goodbye(params)
+	result, err := hello_goodbye(params, mcp.Sandbox{state})
 	defer delete(result.hi)
 	defer delete(result.bye)
 

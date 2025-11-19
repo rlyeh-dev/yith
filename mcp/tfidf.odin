@@ -212,7 +212,7 @@ destroy_api_search_results :: proc(res: ^[]Api_Search_Result) {
 api_search :: proc(
 	server: ^Server,
 	query: string,
-	result_count := 5,
+	result_count := 3,
 ) -> (
 	results: []Api_Search_Result,
 ) {

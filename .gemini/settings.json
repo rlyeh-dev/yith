@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "miskatonic_basic_example": {
+      "command": "odin",
+      "args": ["run", "examples/basic", "--", "stdio"],
+      "cwd": ".",
+      "timeout": 30000,
+      "trust": false
+    }
+  }
+}

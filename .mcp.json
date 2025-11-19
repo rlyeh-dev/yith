@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "miskatonic-basic-example": {
+      "type": "stdio",
+      "command": "odin",
+      "args": ["run", "examples/basic", "--", "stdio"],
+      "env": {}
+    }
+  }
+}

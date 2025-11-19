@@ -75,6 +75,7 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 		check_eval(server, "cherry (should fail)", #load("eval_tests/cherry.lua"))
 		check_eval(server, "badarg (should fail)", #load("eval_tests/badarg.lua"))
 		check_eval(server, "toomany (should fail)", #load("eval_tests/toomany.lua"))
+		check_eval(server, "builtins", #load("eval_tests/builtins.lua"))
 	}
 
 
@@ -154,7 +155,7 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 	}
 
 
-	when #config(proto_debug, true) {
+	when INSPECT_PROTO {
 		debug_hdr("PROTOCOL")
 		messages := [?]string {
 			`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"roots":{"listChanged":true},"sampling":{},"elicitation":{}},"clientInfo":{"name":"ExampleClient","title":"Example Client Display Name","version":"1.0.0"}}}`,

@@ -30,6 +30,7 @@ Weather_Report :: struct {
 
 interplanetary_weather :: proc(
 	params: Weather_Params,
+	sandbox: mcp.Sandbox,
 ) -> (
 	report: Weather_Report_Extended,
 	error: string,
