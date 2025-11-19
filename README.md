@@ -7,10 +7,62 @@ Unlike the above-mentioned blog posts, which advocate for LLMs running TypeScrip
 Only four tools are provided to LLMs:
 
 - **evaluate**: LLM provides a block of lua code to execute in the lua sandbox
+- **help**: Lists a prose help overview on how to use the system.
 - **search**: A tf-idf powered search of all lua api functions available within the sandbox based on the content of the luadoc api docs
 - **list**: Lists only the name and description of each function available
 - **docs**: look up the luadoc documenation for a single api function
 
+In addition, the `help`, `search`, `list`, and `docs` tools have in-lua equivalents as `api_help()`, `api_search()`, `api_list()`, and `api_docs()` respectively. `api_docs()` and `api_help()` return no results but print to the lua sandbox console, which is captured and returned to the LLM as part of the tool response. `api_search()` and `api_list()` return structured results.
+
 The only other MCP-SDK features that support is planned for are user-initiated prompts (slash commands), though client support for these is incredibly limited currently, so it is not a priority. 
 
 Currently still a work in progress. Haven't bothered actually implementing the mcp protocol or transport layers yet, those are the boring parts. :> Sandbox evaluate and basic api search backend support are working.
+
+### Usage 
+
+```odin
+
+import mcp "path/to/miskatonic/mcp"
+
+main :: proc() {
+  server := mcp.make_server("CodeExecMCP", "Code Execution MCP utilizing Miskatonic-MCP", "1.2.3")
+  name :: "do_something"
+  description :: "it does... something"
+  Input :: struct { str: string }
+  Output :: struct { str: string }
+  do_something :: proc(params: Input, sandbox: mcp.Sandbox) -> (result: Output, error: string) {
+    sandbox_print(sandbox, "do_something was called with input: " + params.str)
+    result.str = "You said: " + params.str
+    return
+  }
+  
+  // docs in luadoc format
+  docs: string: `
+---@class DoSomethingParams
+---@field str string The input string to process
+
+---@class DoSomethingResult
+---@field str string The processed output string
+
+---Returns AND prints its input
+---@param params DoSomethingParams
+---@return DoSomethingResult
+function do_something(params) 
+  -- implemented in native code
+end 
+`
+
+  // Register the api docs for the function. 
+  mcp.register_api_docs(server, name, description, docs)
+
+  // Register the sandbox setup to add the function to each sandbox, 
+  // as the lua environment is recreated on every evaluate call
+  mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
+    mcp.register_sandbox_function(sandbox, In, Out, name, do_something)
+  })
+  
+  // Start the MCP stdio server
+  mcp.start_stdio(server)
+}
+
+```
