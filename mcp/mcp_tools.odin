@@ -36,7 +36,7 @@ search_tool :: proc(
 ) {
 	count := count == 0 ? SEARCH_TOOL_DEFAULT_COUNT : math.clamp(count, 1, 10)
 	results := api_search(server, query, count)
-	defer destroy_api_search_results(&results)
+	defer destroy_api_tfidf_search_results(&results)
 	ob := strings.builder_make()
 	defer strings.builder_destroy(&ob)
 

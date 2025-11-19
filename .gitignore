@@ -2,3 +2,6 @@
 
 # example binaries
 /examples/basic/basic
+
+# zed's debugger creates this when you dont have a specific debug.json entry
+/debug_build

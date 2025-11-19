@@ -11,7 +11,8 @@
 
 ---@class ApiListResults
 ---@field apis ApiListResultItem[] List of API functions matching the search criteria
----@field next_page integer? Next page number if more results are available
+---@field more boolean Whether or not there are more pages
+---@field next_page integer Next page number if more results are available, 0 when more = false
 
 ---Search API functions available in this lua environment
 ---@param params ApiListParams

@@ -33,14 +33,7 @@ sandbox_printf :: proc(sandbox: Sandbox, fmt_str: string, args: ..any) {
 }
 
 @(private)
-lua_evaluate :: proc(
-	server: ^Server,
-	setup_procs: []Sandbox_Setup,
-	lua_code: string,
-) -> (
-	output: string,
-	ok: bool,
-) {
+lua_evaluate :: proc(server: ^Server, setup_procs: []Sandbox_Setup, lua_code: string) -> (output: string, ok: bool) {
 	parent_allocator := context.allocator
 	arena: mem.Dynamic_Arena
 	mem.dynamic_arena_init(&arena, alignment = 64)
@@ -107,106 +100,6 @@ lua_evaluate :: proc(
 	return
 }
 
-marshal_lua_table :: proc(
-	state: ^lua.State,
-	$T: typeid,
-	val: ^T,
-	allocator := context.allocator,
-) -> (
-	ok: bool,
-) {
-	context.allocator = allocator
-	ti := type_info_of(T)
-	tib := reflect.type_info_base(ti)
-
-	#partial switch info in tib.variant {
-	case runtime.Type_Info_Struct:
-		lua.createtable(state, 0, info.field_count)
-		for i in 0 ..< info.field_count {
-			fld := info.names[i]
-			off := info.offsets[i]
-			ptr := rawptr(uintptr(val) + off)
-			typ := info.types[i]
-			key := strings.clone_to_cstring(fld)
-			defer delete(key)
-
-			switch typ.id {
-			case string:
-				str := strings.clone_to_cstring((^string)(ptr)^)
-				defer delete(str)
-				lua.pushstring(state, str)
-			case i64:
-				lua.pushinteger(state, lua.Integer((^i64)(ptr)^))
-			case f64:
-				lua.pushnumber(state, lua.Number((^f64)(ptr)^))
-			case bool:
-				lua.pushboolean(state, b32((^bool)(ptr)^))
-			case:
-				// so we don't setfield when we havent pushed a val, e.g. unsupported type.
-				// we could also return an error but meh for now
-				continue
-			}
-			lua.setfield(state, -2, key)
-		}
-	case:
-		// we need to create an empty table anyway b/c this func is expected to push onto lua stack
-		lua.createtable(state, 0, 0)
-		return false
-	}
-
-	return true
-}
-
-unmarshal_lua_table :: proc(
-	state: ^lua.State,
-	idx: i32,
-	$T: typeid,
-	allocator := context.allocator,
-) -> (
-	result: T,
-	ok: bool,
-) {
-	context.allocator = allocator
-	ti := type_info_of(T)
-	tib := reflect.type_info_base(ti)
-
-	#partial switch info in tib.variant {
-	case runtime.Type_Info_Struct:
-		for i in 0 ..< info.field_count {
-			fld := info.names[i]
-			off := info.offsets[i]
-			ptr := rawptr(uintptr(&result) + off)
-			typ := info.types[i]
-			key := strings.clone_to_cstring(fld)
-			defer delete(key)
-
-			lua.getfield(state, idx, key)
-			switch typ.id {
-			case string:
-				str := strings.clone_from_cstring(lua.tostring(state, -1))
-				(^string)(ptr)^ = str
-			case i64:
-				(^i64)(ptr)^ = i64(lua.tointeger(state, -1))
-			case f64:
-				(^f64)(ptr)^ = f64(lua.tonumber(state, -1))
-			case bool:
-				(^bool)(ptr)^ = bool(lua.toboolean(state, -1))
-			case:
-				// we should also probably error here too but im not here for errors rn
-				// but we still want to do the following pop so we also dont need a continue
-				// but if we did error we would need to pop first, so eff it we'll do it anyway
-				lua.pop(state, 1)
-				continue // err here when we are here for errors instead of ok and tbh for now this is still ok
-			}
-			lua.pop(state, 1)
-		}
-
-		ok = true
-	case:
-		ok = false
-	}
-	return
-}
 
 @(private = "package")
 server_from_sandbox :: proc {
@@ -289,12 +182,10 @@ register_sandbox_function :: proc(
 
 		ok: bool
 		params: In
-		params, ok = unmarshal_lua_table(state, -1, In)
-		if !ok {
-			lua_err_cstr := fmt.caprintfln(
-				"could not unmarshal input params for function %s from lua stack",
-				wrapper.name,
-			)
+		um_err := unmarshal_lua_value(state, -1, &params)
+		if um_err != .None {
+			fmt.eprintln("unmarshal error", um_err)
+			lua_err_cstr := fmt.caprintfln("could not unmarshal input params for function %s from lua stack", wrapper.name)
 			defer delete(lua_err_cstr)
 			lua.pushstring(state, lua_err_cstr)
 			lua.error(state)
@@ -307,19 +198,16 @@ register_sandbox_function :: proc(
 			lua.error(state)
 		}
 
-		ok = marshal_lua_table(state, Out, &result)
-		if !ok {
+		m_err := marshal_lua_value(state, result)
+		if m_err != .None {
 			when ODIN_DEBUG {
 				// this could be sensitive info, stderr is fine when in dev but don't send it
-				fmt.eprintfln(
-					"could not marshal output from function %s: %w",
-					wrapper.name,
-					result,
-				)
+				fmt.eprintfln("could not marshal output from function %s: %w (%w)", wrapper.name, result, m_err)
 			}
 			lua_err_cstr := fmt.caprintfln(
-				"could not marshal return value of function %s to lua stack",
+				"could not marshal return value of function %s to lua stack (%w)",
 				wrapper.name,
+				m_err,
 			)
 			defer delete(lua_err_cstr)
 			lua.pushstring(state, lua_err_cstr)

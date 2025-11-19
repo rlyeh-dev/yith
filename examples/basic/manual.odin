@@ -56,13 +56,7 @@ Hi_Bye_Out :: struct {
 	bye: string,
 }
 
-hello_goodbye :: proc(
-	input: Hi_Bye_In,
-	sandbox: mcp.Sandbox,
-) -> (
-	output: Hi_Bye_Out,
-	error: string,
-) {
+hello_goodbye :: proc(input: Hi_Bye_In, sandbox: mcp.Sandbox) -> (output: Hi_Bye_Out, error: string) {
 	if input.hello == "NO" || input.goodbye == "NO" {
 		error = "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
 		return
@@ -79,11 +73,9 @@ hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 	// context = runtime.default_context()
 	// context.allocator = mcp.arena_from_sandbox(state)
 
-	ok: bool
 	params: Hi_Bye_In
-
-	params, ok = mcp.unmarshal_lua_table(state, -1, Hi_Bye_In)
-	if !ok {
+	um_err := mcp.unmarshal_lua_value(state, -1, &params)
+	if um_err != .None {
 		lua.pushstring(state, "could not unmarshal input")
 		lua.error(state)
 	}
@@ -95,8 +87,8 @@ hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 		lua.error(state)
 	}
 
-	ok = mcp.marshal_lua_table(state, Hi_Bye_Out, &result)
-	if !ok {
+	m_err := mcp.marshal_lua_value(state, result)
+	if m_err != nil {
 		when ODIN_DEBUG {
 			fmt.eprintfln("could not marshal output: %w", result)
 		}

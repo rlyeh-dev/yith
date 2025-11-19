@@ -18,10 +18,12 @@ print()
 
 print("-- api_list():\n")
 local next_page = 1
-while next_page do
+local more = true
+while more do
   print("Page:", next_page)
   local first = next_page == 1
   results = api_list({ per_page = 5, page = next_page })
+  more = results.more
   next_page = results.next_page
 
   for index, value in ipairs(results.apis) do

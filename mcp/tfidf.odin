@@ -131,7 +131,7 @@ build_doc_vectors :: proc(tfidf: ^Tfidf, doc: ^Document) {
 query_vectors :: proc(tfidf: ^Tfidf, query: string) -> (vec: []f32) {
 	tokens := make([dynamic]string)
 	defer {
-		for tok in tokens {delete(tok)}
+		for tok in tokens { delete(tok) }
 		delete(tokens)
 	}
 
@@ -195,13 +195,13 @@ build_api_index :: proc(server: ^Server) {
 }
 
 @(private = "package")
-Api_Search_Result :: struct {
+Api_Tfidf_Search_Result :: struct {
 	score: f32,
 	name:  string,
 	index: int,
 }
 @(private = "package")
-destroy_api_search_results :: proc(res: ^[]Api_Search_Result) {
+destroy_api_tfidf_search_results :: proc(res: ^[]Api_Tfidf_Search_Result) {
 	for r in res {
 		delete(r.name)
 	}
@@ -209,17 +209,11 @@ destroy_api_search_results :: proc(res: ^[]Api_Search_Result) {
 }
 
 @(private = "package")
-api_search :: proc(
-	server: ^Server,
-	query: string,
-	result_count := 3,
-) -> (
-	results: []Api_Search_Result,
-) {
+api_search :: proc(server: ^Server, query: string, result_count := 3) -> (results: []Api_Tfidf_Search_Result) {
 	ndocs := len(server.api_index.docs)
 	vec := query_vectors(&server.api_index, query)
 	defer delete(vec)
-	scores := make([]Api_Search_Result, ndocs)
+	scores := make([]Api_Tfidf_Search_Result, ndocs)
 	defer delete(scores)
 
 	for doc, i in server.api_index.docs {
@@ -233,7 +227,7 @@ api_search :: proc(
 
 	nres := len(scores)
 	ct := result_count > nres ? nres : result_count
-	slice.sort_by(scores, proc(i, j: Api_Search_Result) -> bool {
+	slice.sort_by(scores, proc(i, j: Api_Tfidf_Search_Result) -> bool {
 		return i.score > j.score
 	})
 	results = slice.clone(scores[:ct])
