@@ -1,12 +1,70 @@
 package basic_mcp
 
 import mcp "../../mcp"
+import back "../../vendor/back"
 import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:strconv"
 import "core:strings"
 import "core:terminal/ansi"
+
+// use backtrace (only applies when ODIN_DEBUG)
+USE_BACK :: #config(back, false)
+
+// these show some outputs of stuff that should be covered by tests
+// but its nice to just look at them for debugging sometimes
+INSPECT_ALL :: #config(inspect, false)
+INSPECT_EVAL :: #config(inspect_eval, false) || INSPECT_ALL
+INSPECT_TFIDF :: #config(inspect_tfidf, false) || INSPECT_ALL
+INSPECT_SEARCH :: #config(inspect_search, false) || INSPECT_ALL
+INSPECT_LIST :: #config(inspect_list, false) || INSPECT_ALL
+INSPECT_DOCS :: #config(inspect_docs, false) || INSPECT_ALL
+INSPECT_HELP :: #config(inspect_help, false) || INSPECT_ALL
+INSPECT_ANY ::
+	INSPECT_ALL ||
+	INSPECT_EVAL ||
+	INSPECT_TFIDF ||
+	INSPECT_SEARCH ||
+	INSPECT_LIST ||
+	INSPECT_DOCS ||
+	INSPECT_HELP
+
+main :: proc() {
+	when ODIN_DEBUG {
+		when USE_BACK {
+			track: back.Tracking_Allocator
+			back.tracking_allocator_init(&track, context.allocator)
+			defer back.tracking_allocator_destroy(&track)
+
+			context.allocator = back.tracking_allocator(&track)
+			defer back.tracking_allocator_print_results(&track)
+
+			context.assertion_failure_proc = back.assertion_failure_proc
+			back.register_segfault_handler()
+		} else {
+			track: mem.Tracking_Allocator
+			mem.tracking_allocator_init(&track, context.allocator)
+			track.bad_free_callback = mem.tracking_allocator_bad_free_callback_add_to_array
+			context.allocator = mem.tracking_allocator(&track)
+			defer tracking_alloc_report_and_cleanup(&track)
+		}
+	}
+
+	server := mcp.make_server("Basic MCP", "im a basic example", "2.1.4")
+
+	setup_food_service(&server)
+	setup_interplanetary_weather(&server)
+	setup_manual_apis(&server)
+
+	when INSPECT_ANY {
+		// complete_setup is normally run by server start, but need it for our inspects
+		mcp.complete_setup(&server)
+		print_extra_debug_info(&server)
+	}
+
+	mcp.destroy_server(&server)
+}
 
 get_columns :: proc() -> int {
 	cols: int = 80
@@ -68,7 +126,7 @@ check_eval :: proc(server: ^mcp.Server, title, code: string) {
 }
 
 print_extra_debug_info :: proc(server: ^mcp.Server) {
-	when #config(eval_debug, true) {
+	when INSPECT_EVAL {
 		debug_hdr("EVAL")
 		check_eval(server, "basic (should succeed)", #load("eval_tests/basic.lua"))
 		check_eval(server, "cherry (should fail)", #load("eval_tests/cherry.lua"))
@@ -77,15 +135,16 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 	}
 
 
-	when #config(tfidf_debug, false) {
+	when INSPECT_TFIDF {
 		debug_hdr("TF-IDF")
 		for doc, idx in &server.api_index.docs {
 			debug_subhdrf("doc #%d", idx + 1)
-			fmt.eprintln("----------------------------")
-			fmt.eprintfln("-> api function: %s", server.api_docs[idx].name)
-			fmt.eprintfln("-> api desc: %s", server.api_docs[idx].description)
-			fmt.eprintfln("-> api docs:\n%s", server.api_docs[idx].docs)
-			fmt.eprintfln("-> scanned api: %w\n\n", doc)
+			debug_subhdrf("api function: %s", server.api_docs[idx].name)
+			debug_subhdrf("api desc: %s", server.api_docs[idx].description)
+			debug_subhdr("api docs:")
+			debug_dim(server.api_docs[idx].docs)
+			debug_subhdr("scanned api:")
+			debug_dimf("%w\n", doc)
 		}
 		for word, idx in &server.api_index.vocab.words {
 			fmt.eprintf("%s (%d): ", word, idx)
@@ -102,7 +161,7 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 		fmt.eprintln()
 	}
 
-	when #config(search_debug, true) {
+	when INSPECT_SEARCH {
 		debug_hdr("TOOL: SEARCH")
 		srch_qry :: "weather fahrenheit hello report kelvin cherry orphan mercury mars balloon"
 		srch_res, srch_ok := mcp.search_tool(server, srch_qry, 2, descs = false)
@@ -117,7 +176,7 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 		fmt.eprintln(srch_res_2)
 	}
 
-	when #config(list_debug, true) {
+	when INSPECT_LIST {
 		debug_hdr("TOOL: LIST")
 		p := 0
 		for {
@@ -130,7 +189,7 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 		}
 	}
 
-	when #config(docs_debug, true) {
+	when INSPECT_DOCS {
 		debug_hdr("TOOL: DOCS")
 		names := [?]string{"interplanetary_weather", "simple_food_service", "nonexistent"}
 		for name in names {
@@ -142,7 +201,7 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 		}
 	}
 
-	when #config(help_debug, true) {
+	when INSPECT_HELP {
 		debug_hdr("TOOL: HELP")
 		help, help_ok := mcp.help_tool(server)
 		defer delete(help)
@@ -153,52 +212,25 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 
 }
 
-when ODIN_DEBUG {
-	tracking_alloc_report_and_cleanup :: proc(track: ^mem.Tracking_Allocator) {
-		if len(track.allocation_map) > 0 {
-			fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
-			total: int
-			for _, entry in track.allocation_map {
-				total += entry.size
-				when #config(tracking_details, true) {
-					fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
-				}
-			}
-			fmt.eprintf("-> %v bytes total\n", total)
-		}
-		if len(track.bad_free_array) > 0 {
-			fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-			for entry in track.bad_free_array {
-				when #config(tracking_details, true) {
-					fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
-				}
+tracking_alloc_report_and_cleanup :: proc(track: ^mem.Tracking_Allocator) {
+	if len(track.allocation_map) > 0 {
+		fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
+		total: int
+		for _, entry in track.allocation_map {
+			total += entry.size
+			when #config(tracking_details, true) {
+				fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
 			}
 		}
-		mem.tracking_allocator_destroy(track)
+		fmt.eprintf("-> %v bytes total\n", total)
 	}
-}
-
-main :: proc() {
-	when ODIN_DEBUG {
-		track: mem.Tracking_Allocator
-		mem.tracking_allocator_init(&track, context.allocator)
-		track.bad_free_callback = mem.tracking_allocator_bad_free_callback_add_to_array
-		context.allocator = mem.tracking_allocator(&track)
-		defer tracking_alloc_report_and_cleanup(&track)
+	if len(track.bad_free_array) > 0 {
+		fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
+		for entry in track.bad_free_array {
+			when #config(tracking_details, true) {
+				fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
+			}
+		}
 	}
-
-	server := mcp.make_server("Basic MCP", "im a basic example", "2.1.4")
-
-	setup_food_service(&server)
-	setup_interplanetary_weather(&server)
-	setup_manual_apis(&server)
-
-
-	when ODIN_DEBUG {
-		// complete_setup is normally run by server start, but need it for our debug tests
-		mcp.complete_setup(&server)
-		print_extra_debug_info(&server)
-	}
-
-	mcp.destroy_server(&server)
+	mem.tracking_allocator_destroy(track)
 }
