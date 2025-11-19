@@ -11,7 +11,14 @@ evaluate_tool :: proc(server: ^Server, code: string) -> (output: string, ok: boo
 HELP_TEXT :: #load("etc/help.md")
 
 help_tool :: proc(server: ^Server) -> (output: string, ok: bool = true) {
-	output = strings.clone(transmute(string)HELP_TEXT)
+	ob := strings.builder_make()
+	defer strings.builder_destroy(&ob)
+	strings.write_bytes(&ob, HELP_TEXT)
+	for help in server.help_docs {
+		strings.write_string(&ob, "\n\n")
+		strings.write_string(&ob, help)
+	}
+	output = strings.clone(strings.to_string(ob))
 	return
 }
 

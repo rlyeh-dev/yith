@@ -23,6 +23,7 @@ Server :: struct {
 	setups:          [dynamic]Sandbox_Setup,
 	api_index:       Tfidf,
 	setup_completed: bool,
+	help_docs:       [dynamic]string,
 }
 
 destroy_server :: proc(server: ^Server) {
@@ -38,7 +39,15 @@ destroy_server :: proc(server: ^Server) {
 	delete(server.api_names)
 	delete(server.api_docs)
 	delete(server.setups)
+	for help in server.help_docs {
+		delete(help)
+	}
+	delete(server.help_docs)
 	destroy_tfidf(&server.api_index)
+}
+
+add_help :: proc(server: ^Server, help: string) {
+	append(&server.help_docs, strings.clone(help))
 }
 
 register_api_docs :: proc(server: ^Server, name, description, docs: string) {
