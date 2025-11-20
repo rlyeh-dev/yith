@@ -1,6 +1,6 @@
 ### Miskatonic MCP
 
-This is an Odin Server-Only MCP SDK that behaves differently from the traditional/official MCP-SDK's listed at model context protocol, in favor of the Sandboxed Code-Exec style dicussed by [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) and [Cloudflare](https://blog.cloudflare.com/code-mode/).
+This is an Odin Server-Only MCP SDK that behaves differently from the traditional/official MCP-SDK's listed in [MCP's official documentation](https://modelcontextprotocol.io/docs/sdk), in favor of the Sandboxed Code-Exec style dicussed by [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) and [Cloudflare](https://blog.cloudflare.com/code-mode/) in late 2025.
 
 Unlike the above-mentioned blog posts, which advocate for LLMs running TypeScript code in a Docker or cloud container sandbox, this project opts for a more streamlined approach using an in-process lua sandbox. Your api is documented with luadoc comments and implemented in Odin procs (see [weather.lua](examples/basic/weather.lua) and [weather.odin](examples/basic/weather.odin) from the [basic example server](examples/basic))
 
