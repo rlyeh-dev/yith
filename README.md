@@ -26,18 +26,46 @@ import mcp "path/to/miskatonic/mcp"
 
 main :: proc() {
   server := mcp.make_server("CodeExecMCP", "Code Execution MCP utilizing Miskatonic-MCP", "1.2.3")
-  name :: "do_something"
-  description :: "it does... something"
-  Input :: struct { str: string }
-  Output :: struct { str: string }
-  do_something :: proc(params: Input, sandbox: mcp.Sandbox) -> (result: Output, error: string) {
-    sandbox_print(sandbox, "do_something was called with input: " + params.str)
-    result.str = "You said: " + params.str
-    return
-  }
+  // Register the api docs for the function. 
+  // do not need to store these in constants, but it's wise to do 
+  // so for the name since it's replicated in both places. The 
+  // api docs registry happens outside of the sandbox, before lua
+  // is ever booted up, while function registration happens within 
+  // the sandbox
+  mcp.register_api_docs(server, NAME, DESC, DOCS) 
+
+  // Register the sandbox setup to add the function to each sandbox, 
+  // as the lua environment is recreated on every evaluate call
+  mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
+    mcp.register_sandbox_function(sandbox, Input, Output, NAME, do_something)
+  })
   
-  // docs in luadoc format
-  docs: string: `
+  // Start the MCP stdio server. no http server is provided at this time.
+  mcp.start_stdio(server)
+}
+
+NAME :: "do_something"
+DESC :: "it does... something"
+Input :: struct { str: string }
+Output :: struct { str: string }
+// it is possible to write your own lua wrapper `proc "c" ()` style handlers, 
+// and register them with `lua.register()`, but for simple calls and printing
+// output, this style is easiest and most ergonomic.
+do_something :: proc(params: Input, sandbox: mcp.Sandbox) -> (result: Output, error: string) {
+  // this gets printed
+  sandbox_print(sandbox, "do_something was called with input: " + params.str)
+  
+  // by default this proc is run within a dynamic arena allocator, so allocate 
+  // whatever you want and it'll get cleaned up automatically at the end of the 
+  // `evaluate` tool call, after your output has been marshaled into a lua table.
+  // see examples/basic/manual.odin for a comparison of both memory management 
+  // strategies as well as the Input/Output auto-marshaling to/from lua tables.
+  result.str = strings.concatenate({"You said: ", params.str})
+  return
+}
+
+// docs in luadoc format
+DOCS: string: `
 ---@class DoSomethingParams
 ---@field str string The input string to process
 
@@ -51,18 +79,5 @@ function do_something(params)
   -- implemented in native code
 end 
 `
-
-  // Register the api docs for the function. 
-  mcp.register_api_docs(server, name, description, docs)
-
-  // Register the sandbox setup to add the function to each sandbox, 
-  // as the lua environment is recreated on every evaluate call
-  mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
-    mcp.register_sandbox_function(sandbox, In, Out, name, do_something)
-  })
-  
-  // Start the MCP stdio server
-  mcp.start_stdio(server)
-}
 
 ```
