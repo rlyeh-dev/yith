@@ -24,6 +24,7 @@ Server :: struct {
 	api_index:       Tfidf,
 	setup_completed: bool,
 	help_docs:       [dynamic]string,
+	custom_data:     map[string]rawptr,
 }
 
 destroy_server :: proc(server: ^Server) {
@@ -44,10 +45,18 @@ destroy_server :: proc(server: ^Server) {
 	}
 	delete(server.help_docs)
 	destroy_tfidf(&server.api_index)
+	for key, ptr in server.custom_data {
+		delete(key)
+	}
+	delete(server.custom_data)
 }
 
 add_help :: proc(server: ^Server, help: string) {
 	append(&server.help_docs, strings.clone(help))
+}
+
+add_custom_data :: proc(server: ^Server, key: string, data: rawptr) {
+	server.custom_data[key] = data
 }
 
 register_api_docs :: proc(server: ^Server, name, description, docs: string) {

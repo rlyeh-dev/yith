@@ -253,6 +253,18 @@ context_with_arena_from_sandbox_lua :: proc(state: ^lua.State) -> (ctx: runtime.
 	return
 }
 
+custom_data_from_sandbox :: proc {
+	custom_data_from_sandbox_box,
+	custom_data_from_sandbox_lua,
+}
+custom_data_from_sandbox_box :: proc(sandbox: Sandbox, key: string) -> (data: rawptr, ok: bool) {
+	return custom_data_from_sandbox_lua(sandbox.lua_state, key)
+}
+custom_data_from_sandbox_lua :: proc(state: ^lua.State, key: string) -> (data: rawptr, ok: bool) {
+	server := server_from_sandbox_lua(state)
+	return server.custom_data[key]
+}
+
 register_sandbox_function :: proc(
 	sandbox: Sandbox,
 	$In, $Out: typeid,
