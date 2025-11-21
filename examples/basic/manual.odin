@@ -17,7 +17,7 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	// #2 does the exact same thing that the register_sandbox_function does
 	//
 	// note that because we're doing raw lua stuff, we have to import vendor:lua/5.4 directly, matching what
-	// miskatonic_mcp uses internally. the other handlers in this basic example don't touch the lua instance
+	// yith uses internally. the other handlers in this basic example don't touch the lua instance
 	// directly
 
 	t_name :: "hello_goodbye_auto"

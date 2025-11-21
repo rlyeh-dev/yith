@@ -1,4 +1,4 @@
-package miskatonic_mcp
+package yith
 
 import "core:strings"
 

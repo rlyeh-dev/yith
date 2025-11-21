@@ -1,4 +1,4 @@
-### Miskatonic MCP
+### Yith: Code-Exec MCP Server SDK
 
 This is an Odin Server-Only MCP SDK that behaves differently from the traditional/official MCP-SDK's listed in [MCP's official documentation](https://modelcontextprotocol.io/docs/sdk), in favor of the Sandboxed Code-Exec style dicussed by [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) and [Cloudflare](https://blog.cloudflare.com/code-mode/) in late 2025.
 
@@ -22,10 +22,10 @@ Currently still a work in progress. Haven't bothered actually implementing the m
 
 ```odin
 
-import mcp "path/to/miskatonic/mcp"
+import mcp "path/to/yith/mcp"
 
 main :: proc() {
-  server := mcp.make_server("CodeExecMCP", "Code Execution MCP utilizing Miskatonic-MCP", "1.2.3")
+  server := mcp.make_server("CodeExecMCP", "Code Execution MCP utilizing Yith MCP Framework", "1.2.3")
   // Register the api docs for the function. 
   // do not need to store these in constants, but it's wise to do 
   // so for the name since it's replicated in both places. The 
