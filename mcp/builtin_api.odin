@@ -37,7 +37,7 @@ Api_Doc_Params :: struct {
 }
 
 @(private = "package")
-builtin_api_docs :: proc(params: Api_Doc_Params, sandbox: Sandbox) -> (res: Empty, error: string) {
+builtin_api_docs :: proc(params: Api_Doc_Params, sandbox: Sandbox) -> (res: Empty, error: Call_Error) {
 	output, ok := docs_tool(server_from_sandbox(sandbox), params.name)
 	if ok do sandbox_print(sandbox, output)
 	else do error = "Couldn't print output"
@@ -45,7 +45,7 @@ builtin_api_docs :: proc(params: Api_Doc_Params, sandbox: Sandbox) -> (res: Empt
 }
 
 @(private = "package")
-builtin_api_help :: proc(params: Empty, sandbox: Sandbox) -> (res: Empty, error: string) {
+builtin_api_help :: proc(params: Empty, sandbox: Sandbox) -> (res: Empty, error: Call_Error) {
 	output, ok := help_tool(server_from_sandbox(sandbox))
 
 	if ok do sandbox_print(sandbox, output)
@@ -73,7 +73,7 @@ Api_List_Results :: struct {
 }
 
 @(private = "package")
-builtin_api_list :: proc(params: Api_List_Params, sandbox: Sandbox) -> (res: Api_List_Results, error: string) {
+builtin_api_list :: proc(params: Api_List_Params, sandbox: Sandbox) -> (res: Api_List_Results, error: Call_Error) {
 	if params.page <= 0 {
 		error = "page must be >= 0"
 		return
@@ -120,7 +120,13 @@ Api_Search_Result :: struct {
 }
 
 @(private = "package")
-builtin_api_search :: proc(params: Api_Search_Params, sandbox: Sandbox) -> (res: []Api_Search_Result, error: string) {
+builtin_api_search :: proc(
+	params: Api_Search_Params,
+	sandbox: Sandbox,
+) -> (
+	res: []Api_Search_Result,
+	error: Call_Error,
+) {
 	server := server_from_sandbox(sandbox)
 	if params.query == "" {
 		error = "error: empty query. did you mean api_list()?"

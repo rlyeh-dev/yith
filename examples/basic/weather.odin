@@ -33,7 +33,7 @@ interplanetary_weather :: proc(
 	sandbox: mcp.Sandbox,
 ) -> (
 	report: Weather_Report_Extended,
-	error: string,
+	error: mcp.Call_Error,
 ) {
 
 	err: Weather_Error

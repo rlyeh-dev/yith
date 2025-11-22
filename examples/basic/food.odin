@@ -33,7 +33,7 @@ food_service_tool :: proc(
 	sandbox: mcp.Sandbox,
 ) -> (
 	output: Food_Service_Output,
-	error: string,
+	error: mcp.Call_Error,
 ) {
 	mcp.sandbox_print(sandbox, "lol im printing for you")
 	if input.food == "cherry" {

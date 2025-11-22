@@ -158,15 +158,21 @@ custom_data_from_sandbox_lua :: proc(state: ^lua.State, key: string) -> (data: r
 	return server.custom_data[key]
 }
 
+Call_Error :: union {
+	strings.Builder,
+	string,
+}
+
+
 register_sandbox_function :: proc(
 	sandbox: Sandbox,
 	$In, $Out: typeid,
 	name: string,
-	handler: proc(_: In, sandbox: Sandbox) -> (Out, string),
+	handler: proc(_: In, sandbox: Sandbox) -> (Out, Call_Error),
 ) {
 	Wrapper :: struct {
 		name:    string,
-		handler: proc(_: In, sandbox: Sandbox) -> (Out, string),
+		handler: proc(_: In, sandbox: Sandbox) -> (Out, Call_Error),
 	}
 
 	wrapper_ptr := (^Wrapper)(lua.newuserdata(sandbox.lua_state, size_of(Wrapper)))
@@ -186,17 +192,26 @@ register_sandbox_function :: proc(
 		if um_err != .None {
 			fmt.eprintln("unmarshal error", um_err)
 			lua_err_cstr := fmt.caprintfln("could not unmarshal input params for function %s from lua stack", wrapper.name)
-			defer delete(lua_err_cstr)
 			lua.pushstring(state, lua_err_cstr)
+			delete(lua_err_cstr)
 			lua.error(state)
 		}
-		result, err := wrapper.handler(params, Sandbox{state})
-		if err != "" {
-			err_cstr := strings.clone_to_cstring(err)
-			defer delete(err_cstr)
-			lua.pushstring(state, err_cstr)
-			lua.error(state)
+		result, error := wrapper.handler(params, Sandbox{state})
+		switch err in error {
+		case strings.Builder: if strings.builder_len(err) > 0 {
+					err_cstr := strings.clone_to_cstring(strings.to_string(err))
+					lua.pushstring(state, err_cstr)
+					delete(err_cstr)
+					lua.error(state)
+				}
+		case string: if len(err) > 0 {
+					err_cstr := strings.clone_to_cstring(err)
+					lua.pushstring(state, err_cstr)
+					delete(err_cstr)
+					lua.error(state)
+				}
 		}
+
 
 		m_err := marshal_lua_value(state, result)
 		if m_err != .None {
@@ -209,7 +224,6 @@ register_sandbox_function :: proc(
 				wrapper.name,
 				m_err,
 			)
-			defer delete(lua_err_cstr)
 			lua.pushstring(state, lua_err_cstr)
 			lua.error(state)
 		}
