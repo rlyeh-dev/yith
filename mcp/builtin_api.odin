@@ -4,26 +4,26 @@ import "core:fmt"
 import "core:math"
 
 add_builtin_apis :: proc(server: ^Server) {
-	register_api_docs(
+	add_documentation(
 		server,
 		"api_help",
 		"print help documentation, the same as the help tool",
 		#load("etc/builtin_api_help.lua"),
 	)
-	register_api_docs(server, "api_search", "search apis and docs (tf-idf based)", #load("etc/builtin_api_search.lua"))
-	register_api_docs(
+	add_documentation(server, "api_search", "search apis and docs (tf-idf based)", #load("etc/builtin_api_search.lua"))
+	add_documentation(
 		server,
 		"api_docs",
 		"print api documentation for a given function name",
 		#load("etc/builtin_api_docs.lua"),
 	)
-	register_api_docs(server, "api_list", "list all available APIs with pagination", #load("etc/builtin_api_list.lua"))
+	add_documentation(server, "api_list", "list all available APIs with pagination", #load("etc/builtin_api_list.lua"))
 
-	register_sandbox_setup(server, proc(sandbox: Sandbox_Init) {
-		register_sandbox_function(sandbox, Empty, Empty, "api_help", builtin_api_help)
-		register_sandbox_function(sandbox, Api_Doc_Params, Empty, "api_docs", builtin_api_docs)
-		register_sandbox_function(sandbox, Api_Search_Params, []Api_Search_Result, "api_search", builtin_api_search)
-		register_sandbox_function(sandbox, Api_List_Params, Api_List_Results, "api_list", builtin_api_list)
+	setup(server, proc(sandbox: Sandbox_Init) {
+		add_function(sandbox, Empty, Empty, "api_help", builtin_api_help)
+		add_function(sandbox, Api_Doc_Params, Empty, "api_docs", builtin_api_docs)
+		add_function(sandbox, Api_Search_Params, []Api_Search_Result, "api_search", builtin_api_search)
+		add_function(sandbox, Api_List_Params, Api_List_Results, "api_list", builtin_api_list)
 	})
 }
 

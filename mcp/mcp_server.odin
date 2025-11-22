@@ -59,7 +59,7 @@ add_custom_data :: proc(server: ^Server, key: string, data: rawptr) {
 	server.custom_data[strings.clone(key)] = data
 }
 
-register_api_docs :: proc(server: ^Server, name, description, docs: string) {
+add_documentation :: proc(server: ^Server, name, description, docs: string) {
 	rec := Api_Docs {
 		name        = strings.clone(name),
 		description = strings.clone(description),
@@ -70,7 +70,7 @@ register_api_docs :: proc(server: ^Server, name, description, docs: string) {
 	add_api_to_index(&server.api_index, name = name, description = description, docs = docs)
 }
 
-register_sandbox_setup :: proc(server: ^Server, setup_handler: Sandbox_Setup) {
+setup :: proc(server: ^Server, setup_handler: Sandbox_Setup) {
 	append(&server.setups, setup_handler)
 }
 

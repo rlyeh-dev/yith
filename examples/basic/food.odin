@@ -21,10 +21,10 @@ setup_food_service :: proc(server: ^mcp.Server) {
 	In :: Food_Service_Input
 	Out :: Food_Service_Output
 
-	mcp.register_api_docs(server, name, description, docs)
+	mcp.add_documentation(server, name, description, docs)
 
-	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox_Init) {
-		mcp.register_sandbox_function(sandbox, In, Out, name, food_service_tool)
+	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
+		mcp.add_function(sandbox, In, Out, name, food_service_tool)
 	})
 }
 

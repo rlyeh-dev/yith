@@ -244,7 +244,7 @@ get_sandbox :: proc(state: ^lua.State) -> Sandbox {
 	}
 }
 
-register_sandbox_function :: proc(
+add_function :: proc(
 	sandbox: Sandbox_Init,
 	$In, $Out: typeid,
 	name: string,

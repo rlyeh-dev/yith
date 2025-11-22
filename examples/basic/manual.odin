@@ -14,7 +14,7 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	// 3. (`r_*`) manual lua wrapper, manual memory management, manually convert between input/output <-> lua stack
 	//
 	// the handler from #1 (`hello_goodbye`) is used by the other two
-	// #2 does the exact same thing that the register_sandbox_function does
+	// #2 does the exact same thing that the add_function does
 	//
 	// note that because we're doing raw lua stuff, we have to import vendor:lua/5.4 directly, matching what
 	// yith uses internally. the other handlers in this basic example don't touch the lua instance
@@ -35,12 +35,12 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	r_docs := build_hg_docs(r_name)
 	defer delete(r_docs)
 
-	mcp.register_api_docs(server, t_name, t_description, t_docs)
-	mcp.register_api_docs(server, m_name, m_description, m_docs)
-	mcp.register_api_docs(server, r_name, r_description, r_docs)
+	mcp.add_documentation(server, t_name, t_description, t_docs)
+	mcp.add_documentation(server, m_name, m_description, m_docs)
+	mcp.add_documentation(server, r_name, r_description, r_docs)
 
-	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox_Init) {
-		mcp.register_sandbox_function(sandbox, Hi_Bye_In, Hi_Bye_Out, t_name, hello_goodbye)
+	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
+		mcp.add_function(sandbox, Hi_Bye_In, Hi_Bye_Out, t_name, hello_goodbye)
 		lua.register(sandbox.lua_state, m_name, hello_goodbye_marshaled)
 		lua.register(sandbox.lua_state, r_name, hello_goodbye_raw_lua)
 	})

@@ -32,12 +32,12 @@ main :: proc() {
   // api docs registry happens outside of the sandbox, before lua
   // is ever booted up, while function registration happens within 
   // the sandbox
-  mcp.register_api_docs(server, NAME, DESC, DOCS) 
+  mcp.add_documentation(server, NAME, DESC, DOCS) 
 
   // Register the sandbox setup to add the function to each sandbox, 
   // as the lua environment is recreated on every evaluate call
-  mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
-    mcp.register_sandbox_function(sandbox, Input, Output, NAME, do_something)
+  mcp.setup(server, proc(sandbox: mcp.Sandbox) {
+    mcp.add_function(sandbox, Input, Output, NAME, do_something)
   })
   
   // Start the MCP stdio server. no http server is provided at this time.
