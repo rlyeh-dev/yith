@@ -51,9 +51,19 @@ Output :: struct { str: string }
 // it is possible to write your own lua wrapper `proc "c" ()` style handlers, 
 // and register them with `lua.register()`, but for simple calls and printing
 // output, this style is easiest and most ergonomic.
-do_something :: proc(params: Input, sandbox: mcp.Sandbox) -> (result: Output, error: string) {
-  // this gets printed
+do_something :: proc(params: Input, sandbox: mcp.Sandbox) -> (result: Output) {
+  // this gets printed. sandbox_printf also. 
   sandbox_print(sandbox, "do_something was called with input: " + params.str)
+  // this syntax also works:
+  sandbox->printf("do_something likes your input: %s", params.str)
+  
+  if params.str == "BAD_INPUT" {
+    // error/errorf also work in both sandbox_ and sandbox-> syntaxes
+    // this treats the result as a fatal error, and this call will be
+    // reported back as an error to the LLM
+    sandbox_error(sandbox, "do not send me bad input :(")
+    return
+  }
   
   // by default this proc is run within a dynamic arena allocator, so allocate 
   // whatever you want and it'll get cleaned up automatically at the end of the 
