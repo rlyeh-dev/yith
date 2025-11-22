@@ -51,11 +51,7 @@ BORING_TYPES: [11]string : {
 	`userdata`,
 }
 
-tokenize_luadoc :: proc(
-	results: ^[dynamic]string,
-	documentation: string,
-	description: string = "",
-) {
+tokenize_luadoc :: proc(results: ^[dynamic]string, documentation: string, description: string = "") {
 	rgx_class, rgx_field, rgx_param, rgx_func_def, rgx_func_exp, rgx_return_a, rgx_return_b, rgx_return_c: regex.Regular_Expression
 	err: regex.Error
 	if rgx_class, err = regex.create(CLASS); err != nil {
@@ -171,7 +167,7 @@ tokenize_luadoc :: proc(
 }
 
 tokenize_prose :: proc(results: ^[dynamic]string, str: string) {
-	if len(str) == 0 {return}
+	if len(str) == 0 { return }
 	lstr := strings.to_lower(str)
 	defer delete(lstr)
 
@@ -220,7 +216,7 @@ tokenize_type :: proc(results: ^[dynamic]string, str: string) {
 	matched: bool
 
 	for v in BORING_TYPES {
-		if str == v {return}
+		if str == v { return }
 	}
 
 	if _, matched = regex.match(rgx_enum, str, &cap); matched {

@@ -96,12 +96,7 @@ weather_db: [21]Weather_Report : {
 		conditions = "Sulfuric acid clouds, crushing pressure",
 		advisory = "Bring more than an umbrella",
 	},
-	{
-		location = "earth",
-		temperature = 288,
-		conditions = "Partly cloudy",
-		advisory = "Honestly pretty nice today",
-	},
+	{location = "earth", temperature = 288, conditions = "Partly cloudy", advisory = "Honestly pretty nice today"},
 	{
 		location = "mars",
 		temperature = 210,

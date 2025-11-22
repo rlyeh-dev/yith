@@ -1,10 +1,7 @@
 package yith
 
-import "base:runtime"
 import "core:fmt"
 import "core:math"
-import "core:strings"
-import lua "vendor:lua/5.4"
 
 add_builtin_apis :: proc(server: ^Server) {
 	register_api_docs(

@@ -15,8 +15,7 @@ Request_Id :: union {
 @(private = "package")
 destroy_request_id :: proc(id: ^Request_Id) {
 	#partial switch tid in id {
-	case string:
-		delete(tid)
+	case string: delete(tid)
 	}
 }
 
@@ -227,10 +226,8 @@ TOOLS_LIST_RAW :: #load("./etc/tools_list.json")
 @(private = "package")
 request_id_to_json_value :: proc(id: Request_Id) -> (result: json.Value) {
 	switch typed_id in id {
-	case i64:
-		result = json.Integer(typed_id)
-	case string:
-		result = json.String(typed_id)
+	case i64: result = json.Integer(typed_id)
+	case string: result = json.String(typed_id)
 	}
 	return
 }
@@ -257,12 +254,7 @@ tools_list_response :: proc(id: Request_Id) -> (result: []byte) {
 }
 
 @(private = "package")
-server_init_response :: proc(
-	id: Request_Id,
-	protocol_version, name, title, version: string,
-) -> (
-	res_bytes: []byte,
-) {
+server_init_response :: proc(id: Request_Id, protocol_version, name, title, version: string) -> (res_bytes: []byte) {
 	result := Init_Response {
 		jsonrpc = "2.0",
 		id = id,
@@ -284,13 +276,7 @@ server_init_response :: proc(
 }
 
 @(private = "package")
-handle_unknown_tool_call :: proc(
-	server: ^Server,
-	req_bytes: []byte,
-	id: Request_Id,
-) -> (
-	res_bytes: []byte,
-) {
+handle_unknown_tool_call :: proc(server: ^Server, req_bytes: []byte, id: Request_Id) -> (res_bytes: []byte) {
 	return render_tool_call_response("unknown", id, "unknown tool call", true)
 }
 
@@ -306,10 +292,7 @@ render_tool_call_response :: proc(
 	result := Response(Tool_Call_Response) {
 		jsonrpc = "2.0",
 		id = id,
-		result = Tool_Call_Response {
-			content = {{type = "text", text = text_content}},
-			is_error = is_error,
-		},
+		result = Tool_Call_Response{content = {{type = "text", text = text_content}}, is_error = is_error},
 	}
 
 	m_err: json.Marshal_Error
@@ -334,14 +317,7 @@ render_tool_call_bad_params :: proc(tool: string, id: Request_Id) -> (res_bytes:
 }
 
 @(private = "package")
-handle_tool_call :: proc(
-	server: ^Server,
-	req_bytes: []byte,
-	name: string,
-	id: Request_Id,
-) -> (
-	res_bytes: []byte,
-) {
+handle_tool_call :: proc(server: ^Server, req_bytes: []byte, name: string, id: Request_Id) -> (res_bytes: []byte) {
 	res: string
 	ok: bool
 	switch name {
@@ -411,20 +387,13 @@ handle_tool_call :: proc(
 		defer delete(res)
 		res_bytes = render_tool_call_response("Search", id, res, !ok)
 
-	case:
-		handle_unknown_tool_call(server, req_bytes, id)
+	case: handle_unknown_tool_call(server, req_bytes, id)
 	}
 	return
 }
 
 @(private = "package")
-handle_init_req :: proc(
-	server: ^Server,
-	req_bytes: []byte,
-	id: Request_Id,
-) -> (
-	res_bytes: []byte,
-) {
+handle_init_req :: proc(server: ^Server, req_bytes: []byte, id: Request_Id) -> (res_bytes: []byte) {
 	msg: Init_Request
 	defer destroy_init_request(&msg)
 	um_ok := json.unmarshal(req_bytes, &msg)
@@ -448,13 +417,7 @@ handle_init_req :: proc(
 	return
 }
 
-handle_error_response :: proc(
-	message: string,
-	id: Request_Id,
-	code: int = 1,
-) -> (
-	res_bytes: []byte,
-) {
+handle_error_response :: proc(message: string, id: Request_Id, code: int = 1) -> (res_bytes: []byte) {
 	result := Error_Response {
 		jsonrpc = "2.0",
 		id = id,

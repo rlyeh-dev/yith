@@ -12,7 +12,7 @@ get_columns :: proc() -> int {
 	cols: int = 80
 	c, ok := os.lookup_env("COLUMNS")
 	defer delete(c)
-	if !ok {return cols}
+	if !ok { return cols }
 	n, nok := strconv.parse_int(c)
 	return nok ? cols : n
 }
@@ -47,9 +47,7 @@ debug_dimf :: proc(fmt_str: string, args: ..any) {
 }
 
 debug_sucfail :: proc(ok: bool, text: string) {
-	start := strings.concatenate(
-		{ansi.CSI + ansi.BOLD + ";", ok ? ansi.FG_GREEN : ansi.FG_RED, ansi.SGR},
-	)
+	start := strings.concatenate({ansi.CSI + ansi.BOLD + ";", ok ? ansi.FG_GREEN : ansi.FG_RED, ansi.SGR})
 	defer delete(start)
 	END :: ansi.CSI + ansi.RESET + ansi.SGR
 	fmt.eprintfln("%s-> %s" + END, start, text)
@@ -95,8 +93,8 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 			found := 0
 			for doc, i in &server.api_index.docs {
 				val := doc.vec[idx]
-				if val == 0 {continue}
-				if found > 0 {fmt.eprintf(", ")}
+				if val == 0 { continue }
+				if found > 0 { fmt.eprintf(", ") }
 				found += 1
 				fmt.eprintf("%s->%.3f", doc.name, doc.vec[idx])
 			}
@@ -129,7 +127,7 @@ print_extra_debug_info :: proc(server: ^mcp.Server) {
 			defer delete(list_res)
 			debug_sucfailf(list_ok, "page %d", p)
 			fmt.eprintln(list_res)
-			if !list_ok {break}
+			if !list_ok { break }
 		}
 	}
 
