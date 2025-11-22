@@ -19,7 +19,7 @@ add_builtin_apis :: proc(server: ^Server) {
 	)
 	register_api_docs(server, "api_list", "list all available APIs with pagination", #load("etc/builtin_api_list.lua"))
 
-	register_sandbox_setup(server, proc(sandbox: Sandbox) {
+	register_sandbox_setup(server, proc(sandbox: Sandbox_Init) {
 		register_sandbox_function(sandbox, Empty, Empty, "api_help", builtin_api_help)
 		register_sandbox_function(sandbox, Api_Doc_Params, Empty, "api_docs", builtin_api_docs)
 		register_sandbox_function(sandbox, Api_Search_Params, []Api_Search_Result, "api_search", builtin_api_search)
@@ -123,7 +123,7 @@ Api_Search_Result :: struct {
 builtin_api_search :: proc(params: Api_Search_Params, sandbox: Sandbox) -> (res: []Api_Search_Result) {
 	server := server_from_sandbox(sandbox)
 	if params.query == "" {
-		sandbox_error(sandbox, "error: empty query. did you mean api_list()?")
+		sandbox->error("error: empty query. did you mean api_list()?")
 		return
 	}
 	query := params.query

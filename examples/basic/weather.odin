@@ -64,7 +64,7 @@ setup_interplanetary_weather :: proc(server: ^mcp.Server) {
 	Out :: Weather_Report_Extended
 
 	mcp.register_api_docs(server, name, description, docs)
-	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
+	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox_Init) {
 		mcp.register_sandbox_function(sandbox, In, Out, name, interplanetary_weather)
 	})
 }

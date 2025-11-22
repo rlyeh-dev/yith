@@ -23,12 +23,13 @@ setup_food_service :: proc(server: ^mcp.Server) {
 
 	mcp.register_api_docs(server, name, description, docs)
 
-	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
+	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox_Init) {
 		mcp.register_sandbox_function(sandbox, In, Out, name, food_service_tool)
 	})
 }
 
 food_service_tool :: proc(input: Food_Service_Input, sandbox: mcp.Sandbox) -> (output: Food_Service_Output) {
+	// mcp provides sandbox_print / sandbox_printf / sandbox_error / sandbox_errorf procs
 	mcp.sandbox_print(sandbox, "lol im printing for you")
 	if input.food == "cherry" {
 		mcp.sandbox_error(sandbox, "You can't have ANY OF my cherries THEY ARE MINE")
@@ -36,7 +37,8 @@ food_service_tool :: proc(input: Food_Service_Input, sandbox: mcp.Sandbox) -> (o
 	}
 
 	if input.count > 10 {
-		mcp.sandbox_error(sandbox, "You can't have more than 10 of any one food")
+		// this syntax is also supported for error/errorf/print/printf
+		sandbox->error("You can't have more than 10 of any one food")
 		return
 	}
 

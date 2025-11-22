@@ -9,8 +9,15 @@ import lua "vendor:lua/5.4"
 
 Sandbox :: struct {
 	lua_state: ^lua.State,
+	printf:    proc(sandbox: Sandbox, fmt_str: string, args: ..any),
+	print:     proc(sandbox: Sandbox, texts: ..string),
+	errorf:    proc(sandbox: Sandbox, fmt_str: string, args: ..any),
+	error:     proc(sandbox: Sandbox, texts: ..string),
 }
-Sandbox_Setup :: #type proc(sandbox: Sandbox)
+Sandbox_Init :: struct {
+	lua_state: ^lua.State,
+}
+Sandbox_Setup :: #type proc(sandbox: Sandbox_Init)
 
 @(private)
 lua_evaluate :: proc(server: ^Server, setup_procs: []Sandbox_Setup, lua_code: string) -> (output: string, ok: bool) {
@@ -37,7 +44,7 @@ lua_evaluate :: proc(server: ^Server, setup_procs: []Sandbox_Setup, lua_code: st
 	lua.settop(state, 0)
 
 	for setup_proc in setup_procs {
-		setup_proc(Sandbox{state})
+		setup_proc(Sandbox_Init{state})
 	}
 
 	lua.L_dostring(state, #load("etc/print_harness.lua"))
@@ -227,8 +234,18 @@ sandbox_printf_box :: proc(sandbox: Sandbox, fmt_str: string, args: ..any) {
 	sandbox_printf_lua(sandbox.lua_state, fmt_str, ..args)
 }
 
+get_sandbox :: proc(state: ^lua.State) -> Sandbox {
+	return Sandbox {
+		lua_state = state,
+		printf = sandbox_printf_box,
+		print = sandbox_print_box,
+		errorf = sandbox_errorf_box,
+		error = sandbox_error_box,
+	}
+}
+
 register_sandbox_function :: proc(
-	sandbox: Sandbox,
+	sandbox: Sandbox_Init,
 	$In, $Out: typeid,
 	name: string,
 	handler: proc(_: In, sandbox: Sandbox) -> Out,
@@ -261,7 +278,7 @@ register_sandbox_function :: proc(
 			)
 			return 0
 		}
-		result := wrapper.handler(params, Sandbox{state})
+		result := wrapper.handler(params, get_sandbox(state))
 
 		lua.getglobal(state, cstring("MCP_IS_ERROR"))
 		is_error := lua.toboolean(state, -1)

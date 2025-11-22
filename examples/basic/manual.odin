@@ -39,7 +39,7 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	mcp.register_api_docs(server, m_name, m_description, m_docs)
 	mcp.register_api_docs(server, r_name, r_description, r_docs)
 
-	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox) {
+	mcp.register_sandbox_setup(server, proc(sandbox: mcp.Sandbox_Init) {
 		mcp.register_sandbox_function(sandbox, Hi_Bye_In, Hi_Bye_Out, t_name, hello_goodbye)
 		lua.register(sandbox.lua_state, m_name, hello_goodbye_marshaled)
 		lua.register(sandbox.lua_state, r_name, hello_goodbye_raw_lua)
@@ -81,7 +81,14 @@ hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 		lua.error(state)
 	}
 
-	result := hello_goodbye(params, mcp.Sandbox{state})
+	result: Hi_Bye_Out
+	if params.hello == "NO" || params.goodbye == "NO" {
+		NO_NO :: "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
+		mcp.sandbox_error(state, NO_NO)
+		return 0
+	}
+	result.hi = strings.concatenate({params.hello, " lol"})
+	result.bye = strings.concatenate({"lmao ", params.goodbye})
 
 	// sandbox_error() sets this
 	lua.getglobal(state, "MCP_IS_ERROR")
@@ -142,7 +149,14 @@ hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 	params.goodbye = goodbye
 	lua.pop(state, 1)
 
-	result := hello_goodbye(params, mcp.Sandbox{state})
+	result: Hi_Bye_Out
+	if params.hello == "NO" || params.goodbye == "NO" {
+		NO_NO :: "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
+		mcp.sandbox_error(state, NO_NO)
+		return 0
+	}
+	result.hi = strings.concatenate({params.hello, " lol"})
+	result.bye = strings.concatenate({"lmao ", params.goodbye})
 	defer delete(result.hi)
 	defer delete(result.bye)
 
