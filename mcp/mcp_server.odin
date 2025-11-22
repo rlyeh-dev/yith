@@ -56,7 +56,7 @@ add_help :: proc(server: ^Server, help: string) {
 }
 
 add_custom_data :: proc(server: ^Server, key: string, data: rawptr) {
-	server.custom_data[key] = data
+	server.custom_data[strings.clone(key)] = data
 }
 
 register_api_docs :: proc(server: ^Server, name, description, docs: string) {
