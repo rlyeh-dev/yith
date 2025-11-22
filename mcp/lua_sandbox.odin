@@ -12,26 +12,6 @@ Sandbox :: struct {
 }
 Sandbox_Setup :: #type proc(sandbox: Sandbox)
 
-sandbox_print :: proc(sandbox: Sandbox, texts: ..string) {
-	state := sandbox.lua_state
-	lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
-
-	for text in texts {
-		nextidx := lua.rawlen(state, -1) + 1
-		ctext := strings.clone_to_cstring(text)
-		defer delete(ctext)
-		lua.pushstring(state, ctext)
-		lua.seti(state, -2, lua.Integer(nextidx))
-	}
-	lua.pop(state, 1)
-}
-
-sandbox_printf :: proc(sandbox: Sandbox, fmt_str: string, args: ..any) {
-	str := fmt.aprintf(fmt_str, ..args)
-	defer delete(str)
-	sandbox_print(sandbox, str)
-}
-
 @(private)
 lua_evaluate :: proc(server: ^Server, setup_procs: []Sandbox_Setup, lua_code: string) -> (output: string, ok: bool) {
 	parent_allocator := context.allocator
@@ -72,27 +52,40 @@ lua_evaluate :: proc(server: ^Server, setup_procs: []Sandbox_Setup, lua_code: st
 		lua.pop(state, 1)
 	}
 
-	lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
+	output_builder := strings.builder_make()
 
-	// the LLM eval'd code would have to overwrite this to error in this state, which is highly unlikely, but lets check and bail anyway
+	lua.getglobal(state, "MCP_IS_ERROR")
+	is_error := lua.toboolean(state, -1)
+	lua.pop(state, 1)
+
+	lua.getglobal(state, "MCP_ERROR_OUTPUT")
 	lua.L_checktype(state, -1, i32(lua.TTABLE))
 
-	output_len := lua.rawlen(state, -1)
-	output_builder := strings.builder_make()
-	defer strings.builder_destroy(&output_builder)
+	error_len := lua.rawlen(state, -1)
+	if error_len > 0 || is_error {
+		strings.write_string(&output_builder, "\nLUA EVAL FATAL ERROR\n\n")
+		for idx in 1 ..= error_len {
+			lua.geti(state, -1, lua.Integer(idx))
+			cstr := lua.tostring(state, -1)
+			strings.write_string(&output_builder, strings.clone_from_cstring(cstr))
+			strings.write_string(&output_builder, "\n")
+			lua.pop(state, 1)
+		}
+		ok = false
+	} else {
+		lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
+		lua.L_checktype(state, -1, i32(lua.TTABLE))
 
-	for idx in 1 ..= output_len {
-		lua.geti(state, -1, lua.Integer(idx))
-		cstr := lua.tostring(state, -1)
-		strings.write_string(&output_builder, strings.clone_from_cstring(cstr))
-		strings.write_string(&output_builder, "\n")
-		lua.pop(state, 1)
-	}
+		output_len := lua.rawlen(state, -1)
+		defer strings.builder_destroy(&output_builder)
 
-	if !ok {
-		strings.write_string(&output_builder, "LUA EVAL ERROR: ")
-		strings.write_string(&output_builder, err_str)
-		strings.write_string(&output_builder, "\n")
+		for idx in 1 ..= output_len {
+			lua.geti(state, -1, lua.Integer(idx))
+			cstr := lua.tostring(state, -1)
+			strings.write_string(&output_builder, strings.clone_from_cstring(cstr))
+			strings.write_string(&output_builder, "\n")
+			lua.pop(state, 1)
+		}
 	}
 
 	output = strings.clone(strings.to_string(output_builder), parent_allocator)
@@ -158,21 +151,91 @@ custom_data_from_sandbox_lua :: proc(state: ^lua.State, key: string) -> (data: r
 	return server.custom_data[key]
 }
 
-Call_Error :: union {
-	strings.Builder,
-	string,
+sandbox_error :: proc {
+	sandbox_error_box,
+	sandbox_error_lua,
 }
 
+sandbox_error_box :: proc(sandbox: Sandbox, texts: ..string) {
+	sandbox_error_lua(sandbox.lua_state, ..texts)
+}
+
+sandbox_error_lua :: proc(state: ^lua.State, texts: ..string) {
+	lua.getglobal(state, "MCP_ERROR_OUTPUT")
+
+	for text in texts {
+		nextidx := lua.rawlen(state, -1) + 1
+		ctext := strings.clone_to_cstring(text)
+		defer delete(ctext)
+		lua.pushstring(state, ctext)
+		lua.seti(state, -2, lua.Integer(nextidx))
+	}
+	lua.pop(state, 1)
+	lua.pushboolean(state, b32(true))
+	lua.setglobal(state, "MCP_IS_ERROR")
+}
+
+sandbox_errorf :: proc {
+	sandbox_errorf_box,
+	sandbox_errorf_lua,
+}
+
+sandbox_errorf_box :: proc(sandbox: Sandbox, fmt_str: string, args: ..any) {
+	sandbox_errorf_lua(sandbox.lua_state, fmt_str, ..args)
+}
+
+sandbox_errorf_lua :: proc(state: ^lua.State, fmt_str: string, args: ..any) {
+	str := fmt.aprintf(fmt_str, ..args)
+	defer delete(str)
+	sandbox_error_lua(state, str)
+}
+
+sandbox_print :: proc {
+	sandbox_print_box,
+	sandbox_print_lua,
+}
+
+sandbox_print_lua :: proc(state: ^lua.State, texts: ..string) {
+	lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
+
+	for text in texts {
+		nextidx := lua.rawlen(state, -1) + 1
+		ctext := strings.clone_to_cstring(text)
+		defer delete(ctext)
+		lua.pushstring(state, ctext)
+		lua.seti(state, -2, lua.Integer(nextidx))
+	}
+	lua.pop(state, 1)
+}
+
+sandbox_print_box :: proc(sandbox: Sandbox, texts: ..string) {
+	sandbox_print_lua(sandbox.lua_state, ..texts)
+}
+
+sandbox_printf :: proc {
+	sandbox_printf_box,
+	sandbox_printf_lua,
+}
+
+sandbox_printf_lua :: proc(state: ^lua.State, fmt_str: string, args: ..any) {
+	str := fmt.aprintf(fmt_str, ..args)
+	defer delete(str)
+	sandbox_print_lua(state, str)
+}
+
+sandbox_printf_box :: proc(sandbox: Sandbox, fmt_str: string, args: ..any) {
+	sandbox_printf_lua(sandbox.lua_state, fmt_str, ..args)
+}
 
 register_sandbox_function :: proc(
 	sandbox: Sandbox,
 	$In, $Out: typeid,
 	name: string,
-	handler: proc(_: In, sandbox: Sandbox) -> (Out, Call_Error),
+	handler: proc(_: In, sandbox: Sandbox) -> Out,
 ) {
 	Wrapper :: struct {
 		name:    string,
-		handler: proc(_: In, sandbox: Sandbox) -> (Out, Call_Error),
+		handler: proc(_: In, sandbox: Sandbox) -> Out,
 	}
 
 	wrapper_ptr := (^Wrapper)(lua.newuserdata(sandbox.lua_state, size_of(Wrapper)))
@@ -191,41 +254,30 @@ register_sandbox_function :: proc(
 		um_err := unmarshal_lua_value(state, -1, &params)
 		if um_err != .None {
 			fmt.eprintln("unmarshal error", um_err)
-			lua_err_cstr := fmt.caprintfln("could not unmarshal input params for function %s from lua stack", wrapper.name)
-			lua.pushstring(state, lua_err_cstr)
-			delete(lua_err_cstr)
-			lua.error(state)
+			sandbox_errorf(
+				state,
+				"BAD ARGUMENT ERROR (%s): Your input could not be parsed. please check docs and try again",
+				wrapper.name,
+			)
+			return 0
 		}
-		result, error := wrapper.handler(params, Sandbox{state})
-		switch err in error {
-		case strings.Builder: if strings.builder_len(err) > 0 {
-					err_cstr := strings.clone_to_cstring(strings.to_string(err))
-					lua.pushstring(state, err_cstr)
-					delete(err_cstr)
-					lua.error(state)
-				}
-		case string: if len(err) > 0 {
-					err_cstr := strings.clone_to_cstring(err)
-					lua.pushstring(state, err_cstr)
-					delete(err_cstr)
-					lua.error(state)
-				}
-		}
+		result := wrapper.handler(params, Sandbox{state})
 
+		lua.getglobal(state, cstring("MCP_IS_ERROR"))
+		is_error := lua.toboolean(state, -1)
+		lua.pop(state, 1)
+
+		if is_error {
+			return 0
+		}
 
 		m_err := marshal_lua_value(state, result)
 		if m_err != .None {
 			when ODIN_DEBUG {
-				// this could be sensitive info, stderr is fine when in dev but don't send it
 				fmt.eprintfln("could not marshal output from function %s: %w (%w)", wrapper.name, result, m_err)
 			}
-			lua_err_cstr := fmt.caprintfln(
-				"could not marshal return value of function %s to lua stack (%w)",
-				wrapper.name,
-				m_err,
-			)
-			lua.pushstring(state, lua_err_cstr)
-			lua.error(state)
+			sandbox_errorf(state, "could not marshal return value of function %s to lua stack (%w)", wrapper.name, m_err)
+			return 0
 		}
 
 		return 1

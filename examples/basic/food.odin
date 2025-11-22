@@ -28,21 +28,15 @@ setup_food_service :: proc(server: ^mcp.Server) {
 	})
 }
 
-food_service_tool :: proc(
-	input: Food_Service_Input,
-	sandbox: mcp.Sandbox,
-) -> (
-	output: Food_Service_Output,
-	error: mcp.Call_Error,
-) {
+food_service_tool :: proc(input: Food_Service_Input, sandbox: mcp.Sandbox) -> (output: Food_Service_Output) {
 	mcp.sandbox_print(sandbox, "lol im printing for you")
 	if input.food == "cherry" {
-		error = "You can't have ANY OF my cherries THEY ARE MINE"
+		mcp.sandbox_error(sandbox, "You can't have ANY OF my cherries THEY ARE MINE")
 		return
 	}
 
 	if input.count > 10 {
-		error = "You can't have more than 10 of any one food"
+		mcp.sandbox_error(sandbox, "You can't have more than 10 of any one food")
 		return
 	}
 

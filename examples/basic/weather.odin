@@ -28,17 +28,12 @@ Weather_Report :: struct {
 }
 
 
-interplanetary_weather :: proc(
-	params: Weather_Params,
-	sandbox: mcp.Sandbox,
-) -> (
-	report: Weather_Report_Extended,
-	error: mcp.Call_Error,
-) {
+interplanetary_weather :: proc(params: Weather_Params, sandbox: mcp.Sandbox) -> (report: Weather_Report_Extended) {
 
 	err: Weather_Error
 	if report, err = weather_lookup(params.location); err != .None {
-		error = fmt.aprintf("Weather Lookup Error: %w", err)
+		mcp.sandbox_errorf(sandbox, "Weather Lookup Error: %w", err)
+		return
 	}
 
 	return

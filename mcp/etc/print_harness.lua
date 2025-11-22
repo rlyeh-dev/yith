@@ -1,4 +1,6 @@
 MCP_PRINT_HARNESS_OUTPUT = {}
+MCP_ERROR_OUTPUT = {}
+MCP_IS_ERROR = false
 
 local function dump(t, depth)
   depth = depth or 0

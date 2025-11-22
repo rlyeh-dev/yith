@@ -56,9 +56,10 @@ Hi_Bye_Out :: struct {
 	bye: string,
 }
 
-hello_goodbye :: proc(input: Hi_Bye_In, sandbox: mcp.Sandbox) -> (output: Hi_Bye_Out, error: mcp.Call_Error) {
+hello_goodbye :: proc(input: Hi_Bye_In, sandbox: mcp.Sandbox) -> (output: Hi_Bye_Out) {
 	if input.hello == "NO" || input.goodbye == "NO" {
-		error = "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
+		NO_NO :: "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
+		mcp.sandbox_error(sandbox, NO_NO)
 		return
 	}
 	output.hi = strings.concatenate({input.hello, " lol"})
@@ -80,14 +81,13 @@ hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 		lua.error(state)
 	}
 
-	result, error := hello_goodbye(params, mcp.Sandbox{state})
+	result := hello_goodbye(params, mcp.Sandbox{state})
 
-	#partial switch err in error {
-	case string: // we only have strings on this
-			if err != "" {
-				lua.pushstring(state, strings.clone_to_cstring(err))
-				lua.error(state)
-			}
+	// sandbox_error() sets this
+	lua.getglobal(state, "MCP_IS_ERROR")
+	is_err := lua.toboolean(state, -1)
+	if is_err {
+		return 0
 	}
 
 	m_err := mcp.marshal_lua_value(state, result)
@@ -142,18 +142,14 @@ hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 	params.goodbye = goodbye
 	lua.pop(state, 1)
 
-	result, error := hello_goodbye(params, mcp.Sandbox{state})
+	result := hello_goodbye(params, mcp.Sandbox{state})
 	defer delete(result.hi)
 	defer delete(result.bye)
 
-	#partial switch err in error {
-	case string: // we only have strings on this
-			if err != "" {
-				lua.pushstring(state, cstring(raw_data(err)))
-				if result.hi != "" do delete(result.hi)
-				if result.bye != "" do delete(result.bye)
-				lua.error(state) // lua.error longjumps so we cant rely on defer
-			}
+	lua.getglobal(state, "MCP_IS_ERROR")
+	is_err := lua.toboolean(state, -1)
+	if is_err {
+		return 0
 	}
 
 	lua.createtable(state, 0, 2)
