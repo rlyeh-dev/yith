@@ -131,18 +131,13 @@ cli_tool_access :: proc(server: ^Server, prefix: string, args: []string) -> (ok:
 	}
 	first, rest := slice.split_first(args)
 
-	if len(args) > 1 {
-		switch first {
-		case "eval": ok = cli_eval(server, rest)
-		case "api-docs": ok = cli_docs(server, rest)
-		case "api-help": ok = cli_help(server)
-		case "api-list": ok = cli_list(server)
-		case "api-search": ok = cli_search(server, rest)
-		case:
-			usage(prefix)
-			ok = false
-		}
-	} else {
+	switch first {
+	case "eval": ok = cli_eval(server, rest)
+	case "api-docs": ok = cli_docs(server, rest)
+	case "api-help": ok = cli_help(server)
+	case "api-list": ok = cli_list(server)
+	case "api-search": ok = cli_search(server, rest)
+	case:
 		usage(prefix)
 		ok = false
 	}
