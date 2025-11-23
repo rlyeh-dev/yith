@@ -6,6 +6,7 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:path/filepath"
+import "core:strings"
 
 main :: proc() {
 	when ODIN_DEBUG {
@@ -42,11 +43,39 @@ main :: proc() {
 		print_extra_debug_info(&server)
 	}
 
-	if len(os.args) > 1 && os.args[1] == "stdio" {
-		mcp.start_stdio(&server)
+	if len(os.args) > 1 {
+		post_cmd_args := len(os.args) > 2 ? os.args[2:] : {}
+		ok: bool = true
+		switch os.args[1] {
+		case "stdio": mcp.start_stdio(&server)
+		case "eval": ok = mcp.cli_eval(&server, post_cmd_args)
+		case "api-docs": ok = mcp.cli_docs(&server, post_cmd_args)
+		case "api-help": ok = mcp.cli_help(&server)
+		case "api-list": ok = mcp.cli_list(&server)
+		case "api-search": ok = mcp.cli_search(&server, post_cmd_args)
+		case "cli":
+			basename := filepath.base(os.args[0])
+			prefix := strings.join({basename, "cli"}, " ")
+			defer delete(prefix)
+			ok = mcp.cli_aggregated(&server, prefix, post_cmd_args)
+		case: cli_help()
+		}
+		if !ok { os.exit(1) }
 	} else {
+		cli_help()
+	}
+
+	cli_help :: proc() {
 		basename := filepath.base(os.args[0])
-		fmt.eprintfln("run `%s stdio` to start the stdio server", basename)
+		fmt.eprintfln("Usage: %s [command]", basename)
+		fmt.eprintln("\nCommands:")
+		fmt.eprintln("\tstdio      | start mcp stdio server")
+		fmt.eprintln("\tcli        | cli sub-command. it contains all of the commands shown below this one")
+		fmt.eprintln("\teval       | run code within the lua sandbox")
+		fmt.eprintln("\tapi-docs   | print docs for any function available in the lua sandbox")
+		fmt.eprintln("\tapi-help   | print the help text for llms")
+		fmt.eprintln("\tapi-list   | print all available lua functions")
+		fmt.eprintln("\tapi-search | search for lua functions by their documentation contents")
 	}
 
 	mcp.destroy_server(&server)

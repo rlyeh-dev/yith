@@ -4,12 +4,17 @@ import "core:fmt"
 import "core:math"
 import "core:strings"
 
+// this is the backing code for when the mcp protocol layer (and anything
+// else that wants to) calls into the lua sandbox.
 evaluate_tool :: proc(server: ^Server, code: string) -> (output: string, ok: bool = true) {
 	return lua_evaluate(server, server.setups[:], code)
 }
 
 HELP_TEXT :: #load("etc/help.md")
 
+// print the built-in help. This includes basic information about how the
+// lua sandbox works, and you can use the add_help() function to append
+// to this. output is in markdown. the help tool and `api_help()` within lua call this.
 help_tool :: proc(server: ^Server) -> (output: string, ok: bool = true) {
 	ob := strings.builder_make()
 	defer strings.builder_destroy(&ob)
@@ -25,6 +30,9 @@ help_tool :: proc(server: ^Server) -> (output: string, ok: bool = true) {
 SEARCH_TOOL_DEFAULT_COUNT :: 5
 SEARCH_TOOL_DEFAULT_DESCS :: false
 
+// backing proc for the search tool call and `api_search()` within the lua sandbox.
+// searches through the documentation of all api functions that have been documented
+// with the add_documentation() proc
 search_tool :: proc(
 	server: ^Server,
 	query: string,
@@ -53,6 +61,8 @@ search_tool :: proc(
 	return
 }
 
+// `docs` tool and `api_docs()` lua call. fetches api documentation that was created with
+// add_documentation().
 docs_tool :: proc(server: ^Server, func_name: string) -> (output: string, ok: bool = true) {
 	ob := strings.builder_make()
 	defer strings.builder_destroy(&ob)
@@ -72,7 +82,8 @@ docs_tool :: proc(server: ^Server, func_name: string) -> (output: string, ok: bo
 LIST_TOOL_DEFAULT_PAGE :: 1
 LIST_TOOL_DEFAULT_PER_PAGE :: 25
 LIST_TOOL_DEFAULT_DESCS :: false
-
+// `list` tool and `api_list()` lua call. paginated list of all lua api functions
+// that have been documented with `add_documentation()`
 list_tool :: proc(
 	server: ^Server,
 	descs: bool = LIST_TOOL_DEFAULT_DESCS,

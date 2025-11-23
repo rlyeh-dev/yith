@@ -51,14 +51,23 @@ destroy_server :: proc(server: ^Server) {
 	delete(server.custom_data)
 }
 
+// append to the markdown-formatted `help` tool and `api_help()` lua call.
+// this is the documentation for the LLM as a whole and already has content
+// related to how to use the lua subsytem. Document your most important calls
+// with this
 add_help :: proc(server: ^Server, help: string) {
 	append(&server.help_docs, strings.clone(help))
 }
 
+// give us a pointer to anything you want. it will be placed within the lua state,
+// and you can retrieve it with the `custom_data_from_sandbox` procedure group.
 add_custom_data :: proc(server: ^Server, key: string, data: rawptr) {
 	server.custom_data[strings.clone(key)] = data
 }
 
+// register api docs for the LLMs to know how to use your registered lua functions.
+// it is up to you to keep the `name` here in sync with the one you register the
+// function with. I suggest storing the name in a constant.
 add_documentation :: proc(server: ^Server, name, description, docs: string) {
 	rec := Api_Docs {
 		name        = strings.clone(name),
@@ -70,6 +79,9 @@ add_documentation :: proc(server: ^Server, name, description, docs: string) {
 	add_api_to_index(&server.api_index, name = name, description = description, docs = docs)
 }
 
+// The proc that you pass to this function will be called at the beginning of every
+// lua evaluation. Use this to register your functions or do anything else you want
+// to the lua environment (using the .lua_state inside Sandbox_Setup{})
 setup :: proc(server: ^Server, setup_handler: Sandbox_Setup) {
 	append(&server.setups, setup_handler)
 }
@@ -88,6 +100,10 @@ make_server :: proc(name, description: string, version := "1.0.0") -> (server: S
 	return
 }
 
+// This will be called upon server start, but it can also be used to force
+// your api docs index to be to be built before the server starts. Currently
+// this is a no-op after the first call, so make sure all api docs are registered
+// before calling it.
 complete_setup :: proc(server: ^Server) {
 	if !server.setup_completed {
 		build_api_index(server)

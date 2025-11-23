@@ -14,7 +14,8 @@ Marshal_Error :: enum {
 	Unsupported_Type,
 }
 
-// this is silly but its for parity w/ the unmarshal so that they both call (un)marshal_value internally
+// Turns an Odin data type into lua state. supports a lot of the same things that json.marshal does,
+// should handle primitives and structs and slices/arrays/etc. unions are NOT supported currently
 marshal_lua_value :: proc(state: ^lua.State, val: any, allocator := context.allocator) -> (error: Marshal_Error) {
 	return marshal_value(state, val, allocator)
 }
@@ -238,6 +239,8 @@ Unmarshal_Error :: enum {
 	Out_Of_Memory,
 }
 
+// Turns an item on the lua stack into into an Odin datatype. supports a lot of the same things that json.marshal does,
+// should handle primitives and structs and slices/arrays/etc. unions are NOT supported currently
 unmarshal_lua_value :: proc(
 	state: ^lua.State,
 	idx: i32,
