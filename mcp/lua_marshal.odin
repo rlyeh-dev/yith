@@ -2,6 +2,7 @@ package yith
 
 import "base:intrinsics"
 import "base:runtime"
+import "core:fmt"
 import "core:mem"
 import "core:reflect"
 import "core:slice"
@@ -283,7 +284,7 @@ unmarshal_value :: proc(
 	#partial switch info in ti.variant {
 	case runtime.Type_Info_String:
 		if ltyp != .STRING {
-			return .Type_Mismatch
+			return
 		}
 
 		str := strings.clone_from_cstring(lua.tostring(state, -1))
@@ -291,7 +292,7 @@ unmarshal_value :: proc(
 
 	case runtime.Type_Info_Integer:
 		if ltyp != .NUMBER {
-			return .Type_Mismatch
+			return
 		}
 		integer := lua.tointeger(state, -1)
 		switch typ in a {
@@ -311,7 +312,8 @@ unmarshal_value :: proc(
 
 	case runtime.Type_Info_Float:
 		if ltyp != .NUMBER {
-			return .Type_Mismatch
+			fmt.eprintln("type mismatch: expected number, got ", ltyp)
+			return
 		}
 		flt := lua.tonumber(state, -1)
 		switch typ in a {
