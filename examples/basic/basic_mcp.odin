@@ -53,11 +53,11 @@ main :: proc() {
 		case "api-help": ok = mcp.cli_help(&server)
 		case "api-list": ok = mcp.cli_list(&server)
 		case "api-search": ok = mcp.cli_search(&server, post_cmd_args)
-		case "cli":
+		case "tools":
 			basename := filepath.base(os.args[0])
-			prefix := strings.join({basename, "cli"}, " ")
+			prefix := strings.join({basename, os.args[1]}, " ")
 			defer delete(prefix)
-			ok = mcp.cli_aggregated(&server, prefix, post_cmd_args)
+			ok = mcp.cli_tool_access(&server, prefix, post_cmd_args)
 		case: cli_help()
 		}
 		if !ok { os.exit(1) }
@@ -70,7 +70,7 @@ main :: proc() {
 		fmt.eprintfln("Usage: %s [command]", basename)
 		fmt.eprintln("\nCommands:")
 		fmt.eprintln("\tstdio      | start mcp stdio server")
-		fmt.eprintln("\tcli        | cli sub-command. it contains all of the commands shown below this one")
+		fmt.eprintln("\ttools      | cli sub-command. it contains all of the commands shown below this one")
 		fmt.eprintln("\teval       | run code within the lua sandbox")
 		fmt.eprintln("\tapi-docs   | print docs for any function available in the lua sandbox")
 		fmt.eprintln("\tapi-help   | print the help text for llms")

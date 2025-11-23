@@ -115,7 +115,7 @@ cli_search :: proc(server: ^Server, args: []string) -> bool {
 	return true
 }
 
-cli_aggregated :: proc(server: ^Server, prefix: string, args: []string) -> (ok: bool) {
+cli_tool_access :: proc(server: ^Server, prefix: string, args: []string) -> (ok: bool) {
 	usage :: proc(prefix: string) {
 		fmt.eprintfln("Usage: %s [command]", prefix)
 		fmt.eprintln("\nCommands:")
