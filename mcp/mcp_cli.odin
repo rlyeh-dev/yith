@@ -1,33 +1,78 @@
 package yith
 
+import "core:bufio"
 import "core:fmt"
 import "core:math"
+import "core:os"
 import "core:slice"
 import "core:strings"
+import "core:sys/posix"
+import "core:terminal"
+import "core:terminal/ansi"
 
+CY :: ansi.CSI + ansi.BOLD + ";" + ansi.FG_CYAN + ansi.SGR
+RESET :: ansi.CSI + ansi.RESET + ansi.SGR
+DIM :: ansi.CSI + ansi.FAINT + ansi.SGR
+CODEPRINT :: CY + "> " + RESET + DIM + "%s" + RESET
+CODEPRINT_NOTTY :: "> %s"
 // Cli access to evaluate tool. Mostly for human debugging
 // without needing to plug an LLM into the pipeline
 cli_eval :: proc(server: ^Server, args: []string) -> bool {
 	complete_setup(server)
-	non_flags := slice.filter(args, proc(s: string) -> bool {
-		return s == "-" || !strings.starts_with(s, "-")
-	})
-	first := non_flags[0]
-
-	if first == "-" {
-		fmt.printf("stdin support not implemented yet")
-		return true
-	} else {
-		output, ok := evaluate_tool(server, first)
-		defer delete(output)
-		fmt.print(output)
-		if !ok {
-			fmt.eprintfln("\nsandbox exited with fatal error")
+	for a in args {
+		if a == "-h" || a == "-help" || a == "--help" {
+			fmt.println("Use eval 'lua_code_here' to supply code on commandline")
+			fmt.println("Use `eval -` or just `eval` to use stdin")
+			return false
 		}
-		return ok
 	}
 
-	return true
+	code := len(args) > 0 && args[0] != "-" ? strings.clone(args[0]) : read_lua_from_stdin()
+	defer delete(code)
+
+	fmt.println("Running the following code: ")
+	lines := strings.split_lines(code)
+	defer delete(lines)
+
+	fmtstr := terminal.is_terminal(os.stdout) ? CODEPRINT : CODEPRINT_NOTTY
+	for line in lines {
+		fmt.printfln(fmtstr, line)
+	}
+
+	fmt.println("Results: ")
+	output, ok := evaluate_tool(server, code)
+	defer delete(output)
+	fmt.print(output)
+	if !ok { fmt.eprintfln("\nsandbox exited with fatal error") }
+	return ok
+}
+
+
+@(private = "package")
+read_lua_from_stdin :: proc() -> (contents: string) {
+	if terminal.is_terminal(os.stdin) {
+		fmt.println(
+			CY + "[Enter lua code below. Press ctrl-d or use . alone on a line to confirm, or ctrl-c to abort]" + RESET,
+		)
+	}
+
+	buf := [2048]u8{}
+	r: bufio.Reader
+	bufio.reader_init_with_buf(&r, os.stream_from_handle(os.stdin), buf[:])
+	defer bufio.reader_destroy(&r)
+	ob := strings.builder_make()
+	defer strings.builder_destroy(&ob)
+
+	for {
+		line, err := bufio.reader_read_string(&r, '\n')
+		defer delete(line)
+		if err != nil { break }
+		line = strings.trim_right_space(line)
+		if line == "." { break }
+		fmt.sbprintln(&ob, line)
+	}
+	contents = strings.clone(strings.to_string(ob))
+	return
 }
 
 // Cli access to api_docs tool. Mostly for human debugging
