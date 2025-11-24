@@ -9,17 +9,12 @@ import lua "vendor:lua/5.4"
 
 // this is passed to functions registered with add_function(). The upside is,
 // if you do not need to use the lua api, you do not need to `import lua "vendor:lua/5.4"`
-// to register. not involved when you use `lua.register()`
+// to register, and also allows sandbox->print() etc. not involved when you use `lua.register()`
 Sandbox :: struct {
-	// the same lua.state you would get if you used `lua.register()` instead of `add_function()`
 	lua_state: ^lua.State,
-	// another way to call sandbox_printf. exists so you can use sandbox->printf()
 	printf:    proc(sandbox: Sandbox, fmt_str: string, args: ..any),
-	// another way to call sandbox_print. exists so you can use sandbox->print()
 	print:     proc(sandbox: Sandbox, texts: ..string),
-	// another way to call sandbox_errorf. exists so you can use sandbox->errorf()
 	errorf:    proc(sandbox: Sandbox, fmt_str: string, args: ..any),
-	// another way to call sandbox_error. exists so you can use sandbox->error()
 	error:     proc(sandbox: Sandbox, texts: ..string),
 }
 
