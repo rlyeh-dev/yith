@@ -43,7 +43,7 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	mcp.add_documentation(server, r_name, r_sig, r_desc, r_docs)
 
 	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
-		mcp.add_function(sandbox, Hi_Bye_In, Hi_Bye_Out, t_name, hello_goodbye)
+		mcp.add_function(sandbox, t_name, hello_goodbye)
 		lua.register(sandbox.lua_state, m_name, hello_goodbye_marshaled)
 		lua.register(sandbox.lua_state, r_name, hello_goodbye_raw_lua)
 	})

@@ -25,7 +25,7 @@ setup_food_service :: proc(server: ^mcp.Server) {
 	mcp.add_documentation(server, name, sig, description, docs)
 
 	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
-		mcp.add_function(sandbox, In, Out, name, food_service_tool)
+		mcp.add_function(sandbox, name, food_service_tool)
 	})
 }
 

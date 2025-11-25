@@ -15,10 +15,10 @@ add_builtin_apis :: proc(server: ^Server) {
 	add_documentation(server, LIST, LIST_SIG, LIST_DESC, #load("etc/builtin_api_list.lua"))
 
 	setup(server, proc(sandbox: Sandbox_Init) {
-		add_function(sandbox, Empty, Empty, HELP, builtin_api_help)
-		add_function(sandbox, Api_Doc_Params, Empty, DOCS, builtin_api_docs)
-		add_function(sandbox, Api_Search_Params, []Api_Search_Result, SRCH, builtin_api_search)
-		add_function(sandbox, Api_List_Params, Api_List_Results, LIST, builtin_api_list)
+		add_function(sandbox, HELP, builtin_api_help)
+		add_function(sandbox, DOCS, builtin_api_docs)
+		add_function(sandbox, SRCH, builtin_api_search)
+		add_function(sandbox, LIST, builtin_api_list)
 	})
 }
 

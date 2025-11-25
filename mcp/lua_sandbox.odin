@@ -335,7 +335,7 @@ get_sandbox :: proc(state: ^lua.State) -> Sandbox {
 // a fancier version of `lua.register()`. It will create a lua_wrapper for you,
 // set it up with the sandbox's dynamic arena allocator, (un)marshal your input/output
 // params to/from lua stack, and call your typed lua handler for you
-add_function :: proc(sandbox: Sandbox_Init, $In, $Out: typeid, name: string, handler: proc(_: In, _: Sandbox) -> Out) {
+add_function :: proc(sandbox: Sandbox_Init, name: string, handler: proc(_: $In, _: Sandbox) -> $Out) {
 	Wrapper :: struct {
 		name:    string,
 		handler: proc(_: In, sandbox: Sandbox) -> Out,

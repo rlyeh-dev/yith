@@ -66,7 +66,7 @@ setup_interplanetary_weather :: proc(server: ^mcp.Server) {
 
 	mcp.add_documentation(server, name, sig, description, docs)
 	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
-		mcp.add_function(sandbox, In, Out, name, interplanetary_weather)
+		mcp.add_function(sandbox, name, interplanetary_weather)
 	})
 }
 
