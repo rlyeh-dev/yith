@@ -5,11 +5,13 @@ import "core:strings"
 Api_Docs :: struct {
 	name:        string,
 	description: string,
+	signature:   string,
 	docs:        string,
 }
 
 destroy_api :: proc(api: ^Api_Docs) {
 	delete(api.name)
+	delete(api.signature)
 	delete(api.description)
 	delete(api.docs)
 }
@@ -67,11 +69,15 @@ add_custom_data :: proc(server: ^Server, key: string, data: rawptr) {
 
 // register api docs for the LLMs to know how to use your registered lua functions.
 // it is up to you to keep the `name` here in sync with the one you register the
-// function with. I suggest storing the name in a constant.
-add_documentation :: proc(server: ^Server, name, description, docs: string) {
+// function with. I suggest storing the name in a constant. docs should be full luadoc
+// api docs, and signature should be 1-line documentation like
+// `my_func({arg1="foo", arg2="blah"})`, description should similarly be a 1-line
+// textual description of its purpose
+add_documentation :: proc(server: ^Server, name, signature, description, docs: string) {
 	rec := Api_Docs {
 		name        = strings.clone(name),
 		description = strings.clone(description),
+		signature   = strings.clone(signature),
 		docs        = strings.clone(docs),
 	}
 	append(&server.api_docs, rec)

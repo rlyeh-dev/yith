@@ -114,9 +114,9 @@ list_tool :: proc(
 	for idx in first ..= last {
 		api := server.api_docs[idx]
 		if descs {
-			fmt.sbprintfln(&ob, " * `%s`: %s", api.name, api.description)
+			fmt.sbprintfln(&ob, " * `%s`:\n\t%s\n\t%s", api.name, api.signature, api.description)
 		} else {
-			fmt.sbprintfln(&ob, " * `%s`", api.name)
+			fmt.sbprintfln(&ob, " * `%s`: %s", api.name, api.signature)
 		}
 	}
 

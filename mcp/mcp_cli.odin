@@ -109,13 +109,13 @@ cli_list :: proc(server: ^Server) -> bool {
 	for api in lst {
 		longest_name = math.max(len(api.name), longest_name)
 	}
-	lenstr := fmt.aprintf("%d", longest_name)
-	defer delete(lenstr)
-	fmtstr := strings.concatenate({"%-", lenstr, "s | %s"})
-	defer delete(fmtstr)
+	// lenstr := fmt.aprintf("%d", longest_name)
+	// defer delete(lenstr)
+	// fmtstr := strings.concatenate({"%-", lenstr, "s | %s"})
+	// defer delete(fmtstr)
 	fmt.printfln("Available APIs: ")
 	for api in lst {
-		fmt.printfln(fmtstr, api.name, api.description)
+		fmt.printfln("%s:\n\t%s\n\t%s\n", api.name, api.signature, api.description)
 	}
 	return true
 }

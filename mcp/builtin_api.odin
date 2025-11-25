@@ -4,26 +4,21 @@ import "core:fmt"
 import "core:math"
 
 add_builtin_apis :: proc(server: ^Server) {
-	add_documentation(
-		server,
-		"api_help",
-		"print help documentation, the same as the help tool",
-		#load("etc/builtin_api_help.lua"),
-	)
-	add_documentation(server, "api_search", "search apis and docs (tf-idf based)", #load("etc/builtin_api_search.lua"))
-	add_documentation(
-		server,
-		"api_docs",
-		"print api documentation for a given function name",
-		#load("etc/builtin_api_docs.lua"),
-	)
-	add_documentation(server, "api_list", "list all available APIs with pagination", #load("etc/builtin_api_list.lua"))
+	HELP, HELP_SIG, HELP_DESC :: "api_help", `api_help() -- no args`, "print help documentation for this mcp"
+	DOCS, DOCS_SIG, DOCS_DESC :: "api_docs", `api_docs({name="func_name"})`, "print api documentation for any lua call"
+	SRCH, SRCH_SIG, SRCH_DESC :: "api_search", `api_search({query="q", count=4})`, "search apis and docs (tf-idf based)"
+	LIST, LIST_SIG, LIST_DESC :: "api_list", `api_list({page=1, per_page=25})`, "list all available APIs with pagination"
+
+	add_documentation(server, HELP, HELP_SIG, HELP_DESC, #load("etc/builtin_api_help.lua"))
+	add_documentation(server, DOCS, DOCS_SIG, DOCS_DESC, #load("etc/builtin_api_docs.lua"))
+	add_documentation(server, SRCH, SRCH_SIG, SRCH_DESC, #load("etc/builtin_api_search.lua"))
+	add_documentation(server, LIST, LIST_SIG, LIST_DESC, #load("etc/builtin_api_list.lua"))
 
 	setup(server, proc(sandbox: Sandbox_Init) {
-		add_function(sandbox, Empty, Empty, "api_help", builtin_api_help)
-		add_function(sandbox, Api_Doc_Params, Empty, "api_docs", builtin_api_docs)
-		add_function(sandbox, Api_Search_Params, []Api_Search_Result, "api_search", builtin_api_search)
-		add_function(sandbox, Api_List_Params, Api_List_Results, "api_list", builtin_api_list)
+		add_function(sandbox, Empty, Empty, HELP, builtin_api_help)
+		add_function(sandbox, Api_Doc_Params, Empty, DOCS, builtin_api_docs)
+		add_function(sandbox, Api_Search_Params, []Api_Search_Result, SRCH, builtin_api_search)
+		add_function(sandbox, Api_List_Params, Api_List_Results, LIST, builtin_api_list)
 	})
 }
 
@@ -63,6 +58,7 @@ Api_List_Params :: struct {
 
 Api_List_Result :: struct {
 	name:        string,
+	signature:   string,
 	description: string,
 	docs:        string,
 }
@@ -95,7 +91,10 @@ builtin_api_list :: proc(params: Api_List_Params, sandbox: Sandbox) -> (res: Api
 	apis := make([dynamic]Api_List_Result)
 	for idx in first ..= last {
 		api := server.api_docs[idx]
-		append(&apis, Api_List_Result{name = api.name, description = api.description, docs = api.docs})
+		append(
+			&apis,
+			Api_List_Result{name = api.name, signature = api.signature, description = api.description, docs = api.docs},
+		)
 	}
 	res.apis = apis[:]
 	if last < api_max_idx {

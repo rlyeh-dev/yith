@@ -58,12 +58,13 @@ weather_lookup :: proc(loc: string) -> (weather: Weather_Report_Extended, error:
 
 setup_interplanetary_weather :: proc(server: ^mcp.Server) {
 	name :: "interplanetary_weather"
+	sig :: `interplanetary_weather({location="luna"})`
 	description :: "whether you're on mars, io, or surfing the asteroid belt, we've got your weather conditions covered"
 	docs: string : #load("weather.lua")
 	In :: Weather_Params
 	Out :: Weather_Report_Extended
 
-	mcp.add_documentation(server, name, description, docs)
+	mcp.add_documentation(server, name, sig, description, docs)
 	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
 		mcp.add_function(sandbox, In, Out, name, interplanetary_weather)
 	})

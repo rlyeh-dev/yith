@@ -21,23 +21,26 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	// directly
 
 	t_name :: "hello_goodbye_auto"
-	t_description :: "Hello/Goodbye with typed lua registry helper"
+	t_sig :: `hello_goodybye_auto({hello="hey", goodbye="cya"})`
+	t_desc :: "Hello/Goodbye with typed lua registry helper"
 	t_docs := build_hg_docs(t_name)
 	defer delete(t_docs)
 
 	m_name :: "hello_goodbye_marshaled"
-	m_description :: "Hello/Goodbye with marshaling helpers"
+	m_sig :: `hello_goodbye_marshaled({hello="hey", goodbye="cya"})`
+	m_desc :: "Hello/Goodbye with marshaling helpers"
 	m_docs := build_hg_docs(m_name)
 	defer delete(m_docs)
 
 	r_name :: "hello_goodbye_raw_lua"
-	r_description :: "Hello/Goodbye with manual lua stack tomfoolery"
+	r_sig :: `hello_goodbye_raw_lua({hello="hey", goodbye="cya"})`
+	r_desc :: "Hello/Goodbye with manual lua stack tomfoolery"
 	r_docs := build_hg_docs(r_name)
 	defer delete(r_docs)
 
-	mcp.add_documentation(server, t_name, t_description, t_docs)
-	mcp.add_documentation(server, m_name, m_description, m_docs)
-	mcp.add_documentation(server, r_name, r_description, r_docs)
+	mcp.add_documentation(server, t_name, t_sig, t_desc, t_docs)
+	mcp.add_documentation(server, m_name, m_sig, m_desc, m_docs)
+	mcp.add_documentation(server, r_name, r_sig, r_desc, r_docs)
 
 	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
 		mcp.add_function(sandbox, Hi_Bye_In, Hi_Bye_Out, t_name, hello_goodbye)

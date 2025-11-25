@@ -16,12 +16,13 @@ Food_Service_Output :: struct {
 
 setup_food_service :: proc(server: ^mcp.Server) {
 	name :: "simple_food_service"
+	sig :: `simple_food_service({food:"strawberry", count:7})`
 	description :: "Gives you some of your favorite food"
 	docs: string : #load("food.lua")
 	In :: Food_Service_Input
 	Out :: Food_Service_Output
 
-	mcp.add_documentation(server, name, description, docs)
+	mcp.add_documentation(server, name, sig, description, docs)
 
 	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
 		mcp.add_function(sandbox, In, Out, name, food_service_tool)
