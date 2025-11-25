@@ -44,10 +44,6 @@
               "maximum": 10,
               "default": 3,
               "description": "number of results to return."
-            },
-            "descriptions": {
-              "type": "boolean",
-              "description": "include descriptions"
             }
           },
           "required": ["query"]

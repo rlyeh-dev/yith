@@ -94,9 +94,8 @@ destroy_search_tool_request :: proc(req: ^Search_Tool_Call_Request) {
 
 @(private = "package")
 List_Tool_Args :: struct {
-	page:         Maybe(int),
-	per_page:     Maybe(int),
-	descriptions: Maybe(bool),
+	page:     Maybe(int),
+	per_page: Maybe(int),
 }
 @(private = "package")
 destroy_list_tool_args :: proc(args: ^List_Tool_Args) {
@@ -366,8 +365,7 @@ handle_tool_call :: proc(server: ^Server, req_bytes: []byte, name: string, id: R
 		a := msg.params.arguments
 		page := a.page.? or_else LIST_TOOL_DEFAULT_PAGE
 		per_page := a.per_page.? or_else LIST_TOOL_DEFAULT_PER_PAGE
-		descs := a.descriptions.? or_else LIST_TOOL_DEFAULT_DESCS
-		res, ok := list_tool(server, descs = descs, page = page, per_page = per_page)
+		res, ok := list_tool(server, page = page, per_page = per_page)
 		defer delete(res)
 		res_bytes = render_tool_call_response("List", id, res, !ok)
 

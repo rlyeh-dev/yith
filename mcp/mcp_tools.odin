@@ -86,7 +86,6 @@ LIST_TOOL_DEFAULT_DESCS :: false
 // that have been documented with `add_documentation()`
 list_tool :: proc(
 	server: ^Server,
-	descs: bool = LIST_TOOL_DEFAULT_DESCS,
 	page: int = LIST_TOOL_DEFAULT_PAGE,
 	per_page: int = LIST_TOOL_DEFAULT_PER_PAGE,
 ) -> (
@@ -113,11 +112,7 @@ list_tool :: proc(
 
 	for idx in first ..= last {
 		api := server.api_docs[idx]
-		if descs {
-			fmt.sbprintfln(&ob, " * `%s`:\n\t%s\n\t%s", api.name, api.signature, api.description)
-		} else {
-			fmt.sbprintfln(&ob, " * `%s`: %s", api.name, api.signature)
-		}
+		fmt.sbprintfln(&ob, " * `%s`:\n\t%s\n\t%s", api.name, api.signature, api.description)
 	}
 
 	if last < api_max_idx {
