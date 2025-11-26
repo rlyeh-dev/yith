@@ -2,6 +2,7 @@ package yith
 
 import "core:fmt"
 import "core:math"
+import lua "vendor:lua/5.4"
 
 add_builtin_apis :: proc(server: ^Server) {
 	HELP, HELP_SIG, HELP_DESC :: "api_help", `api_help() -- no args`, "print help documentation for this mcp"
@@ -14,11 +15,11 @@ add_builtin_apis :: proc(server: ^Server) {
 	add_documentation(server, SRCH, SRCH_SIG, SRCH_DESC, #load("etc/builtin_api_search.lua"))
 	add_documentation(server, LIST, LIST_SIG, LIST_DESC, #load("etc/builtin_api_list.lua"))
 
-	setup(server, proc(sandbox: Sandbox_Init) {
-		add_function(sandbox, HELP, builtin_api_help)
-		add_function(sandbox, DOCS, builtin_api_docs)
-		add_function(sandbox, SRCH, builtin_api_search)
-		add_function(sandbox, LIST, builtin_api_list)
+	setup(server, proc(state: ^lua.State) {
+		add_function(state, HELP, builtin_api_help)
+		add_function(state, DOCS, builtin_api_docs)
+		add_function(state, SRCH, builtin_api_search)
+		add_function(state, LIST, builtin_api_list)
 	})
 }
 
@@ -32,19 +33,19 @@ Api_Doc_Params :: struct {
 }
 
 @(private = "package")
-builtin_api_docs :: proc(params: Api_Doc_Params, sandbox: Sandbox) -> (res: Empty) {
-	output, ok := docs_tool(server_from_sandbox(sandbox), params.name)
-	if ok do sandbox_print(sandbox, output)
-	else do sandbox_error(sandbox, "Couldn't print output")
+builtin_api_docs :: proc(params: Api_Doc_Params, state: ^lua.State) -> (res: Empty) {
+	output, ok := docs_tool(mcp_server_instance(state), params.name)
+	if ok do print(state, output)
+	else do error(state, "Couldn't print output")
 	return
 }
 
 @(private = "package")
-builtin_api_help :: proc(params: Empty, sandbox: Sandbox) -> (res: Empty) {
-	output, ok := help_tool(server_from_sandbox(sandbox))
+builtin_api_help :: proc(params: Empty, state: ^lua.State) -> (res: Empty) {
+	output, ok := help_tool(mcp_server_instance(state))
 
-	if ok do sandbox_print(sandbox, output)
-	else do sandbox_error(sandbox, "Couldn't print output")
+	if ok do print(state, output)
+	else do error(state, "Couldn't print output")
 
 	return
 }
@@ -69,13 +70,13 @@ Api_List_Results :: struct {
 }
 
 @(private = "package")
-builtin_api_list :: proc(params: Api_List_Params, sandbox: Sandbox) -> (res: Api_List_Results) {
+builtin_api_list :: proc(params: Api_List_Params, state: ^lua.State) -> (res: Api_List_Results) {
 	if params.page <= 0 {
-		sandbox_error(sandbox, "page must be >= 0")
+		error(state, "page must be >= 0")
 		return
 	}
 	res.more = false
-	server := server_from_sandbox(sandbox)
+	server := mcp_server_instance(state)
 	page := params.page
 	per_page := params.per_page == 0 ? LIST_TOOL_DEFAULT_PER_PAGE : math.clamp(params.per_page, 1, 50)
 
@@ -119,10 +120,10 @@ Api_Search_Result :: struct {
 }
 
 @(private = "package")
-builtin_api_search :: proc(params: Api_Search_Params, sandbox: Sandbox) -> (res: []Api_Search_Result) {
-	server := server_from_sandbox(sandbox)
+builtin_api_search :: proc(params: Api_Search_Params, state: ^lua.State) -> (res: []Api_Search_Result) {
+	server := mcp_server_instance(state)
 	if params.query == "" {
-		sandbox->error("error: empty query. did you mean api_list()?")
+		error(state, "error: empty query. did you mean api_list()?")
 		return
 	}
 	query := params.query

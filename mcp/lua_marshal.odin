@@ -547,58 +547,6 @@ unmarshal_value :: proc(
 	return
 }
 
-
-// unmarshal_lua_value :: proc(
-// 	state: ^lua.State,
-// 	idx: i32,
-// 	$T: typeid,
-// 	allocator := context.allocator,
-// ) -> (
-// 	result: T,
-// 	ok: bool,
-// ) {
-// 	context.allocator = allocator
-// 	ti := type_info_of(T)
-// 	tib := reflect.type_info_base(ti)
-
-// 	#partial switch info in tib.variant {
-// 	case runtime.Type_Info_Struct:
-// 		for i in 0 ..< info.field_count {
-// 			fld := info.names[i]
-// 			off := info.offsets[i]
-// 			ptr := rawptr(uintptr(&result) + off)
-// 			typ := info.types[i]
-// 			key := strings.clone_to_cstring(fld)
-// 			defer delete(key)
-
-// 			lua.getfield(state, idx, key)
-// 			switch typ.id {
-// 			case string:
-// 				str := strings.clone_from_cstring(lua.tostring(state, -1))
-// 				(^string)(ptr)^ = str
-// 			case i64:
-// 				(^i64)(ptr)^ = i64(lua.tointeger(state, -1))
-// 			case f64:
-// 				(^f64)(ptr)^ = f64(lua.tonumber(state, -1))
-// 			case bool:
-// 				(^bool)(ptr)^ = bool(lua.toboolean(state, -1))
-// 			case:
-// 				// we should also probably error here too but im not here for errors rn
-// 				// but we still want to do the following pop so we also dont need a continue
-// 				// but if we did error we would need to pop first, so eff it we'll do it anyway
-// 				lua.pop(state, 1)
-// 				continue // err here when we are here for errors instead of ok and tbh for now this is still ok
-// 			}
-// 			lua.pop(state, 1)
-// 		}
-
-// 		ok = true
-// 	case:
-// 		ok = false
-// 	}
-// 	return
-// }
-
 // taken from odin json marshal stuff
 @(private)
 cast_any_int_to_u128 :: proc(any_int_value: any) -> u128 {

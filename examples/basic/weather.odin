@@ -2,6 +2,7 @@ package basic_mcp
 
 import mcp "../../mcp"
 import "core:fmt"
+import lua "vendor:lua/5.4"
 
 Weather_Params :: struct {
 	location: string,
@@ -28,14 +29,13 @@ Weather_Report :: struct {
 }
 
 
-interplanetary_weather :: proc(params: Weather_Params, sandbox: mcp.Sandbox) -> (report: Weather_Report_Extended) {
-
+interplanetary_weather :: proc(params: Weather_Params, state: ^lua.State) -> (report: Weather_Report_Extended) {
 	err: Weather_Error
-	if report, err = weather_lookup(params.location); err != .None {
-		mcp.sandbox_errorf(sandbox, "Weather Lookup Error: %w", err)
+	report, err = weather_lookup(params.location)
+	if err != .None {
+		mcp.errorf(state, "Weather Lookup Error: %w", err)
 		return
 	}
-
 	return
 }
 
@@ -57,16 +57,15 @@ weather_lookup :: proc(loc: string) -> (weather: Weather_Report_Extended, error:
 }
 
 setup_interplanetary_weather :: proc(server: ^mcp.Server) {
-	name :: "interplanetary_weather"
-	sig :: `interplanetary_weather({location="luna"})`
-	description :: "whether you're on mars, io, or surfing the asteroid belt, we've got your weather conditions covered"
+	name, sig, desc ::
+		"interplanetary_weather",
+		`interplanetary_weather({location="luna"})`,
+		"whether you're on mars, io, or surfing the asteroid belt, we've got your weather conditions covered"
 	docs: string : #load("weather.lua")
-	In :: Weather_Params
-	Out :: Weather_Report_Extended
 
-	mcp.add_documentation(server, name, sig, description, docs)
-	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
-		mcp.add_function(sandbox, name, interplanetary_weather)
+	mcp.add_documentation(server, name, sig, desc, docs)
+	mcp.setup(server, proc(state: ^lua.State) {
+		mcp.add_function(state, name, interplanetary_weather)
 	})
 }
 

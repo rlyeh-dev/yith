@@ -42,10 +42,10 @@ setup_manual_apis :: proc(server: ^mcp.Server) {
 	mcp.add_documentation(server, m_name, m_sig, m_desc, m_docs)
 	mcp.add_documentation(server, r_name, r_sig, r_desc, r_docs)
 
-	mcp.setup(server, proc(sandbox: mcp.Sandbox_Init) {
-		mcp.add_function(sandbox, t_name, hello_goodbye)
-		lua.register(sandbox.lua_state, m_name, hello_goodbye_marshaled)
-		lua.register(sandbox.lua_state, r_name, hello_goodbye_raw_lua)
+	mcp.setup(server, proc(state: ^lua.State) {
+		mcp.add_function(state, t_name, hello_goodbye)
+		lua.register(state, m_name, hello_goodbye_marshaled)
+		lua.register(state, r_name, hello_goodbye_raw_lua)
 	})
 }
 
@@ -59,10 +59,10 @@ Hi_Bye_Out :: struct {
 	bye: string,
 }
 
-hello_goodbye :: proc(input: Hi_Bye_In, sandbox: mcp.Sandbox) -> (output: Hi_Bye_Out) {
+hello_goodbye :: proc(input: Hi_Bye_In, state: ^lua.State) -> (output: Hi_Bye_Out) {
 	if input.hello == "NO" || input.goodbye == "NO" {
 		NO_NO :: "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
-		mcp.sandbox_error(sandbox, NO_NO)
+		mcp.error(state, NO_NO)
 		return
 	}
 	output.hi = strings.concatenate({input.hello, " lol"})
@@ -71,11 +71,8 @@ hello_goodbye :: proc(input: Hi_Bye_In, sandbox: mcp.Sandbox) -> (output: Hi_Bye
 }
 
 hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
-	// get our arena allocator out of lua
-	context = mcp.context_with_arena_from_sandbox(state)
-	// can also do this:
-	// context = runtime.default_context()
-	// context.allocator = mcp.arena_from_sandbox(state)
+	context = runtime.default_context()
+	context.allocator = mcp.arena_allocator(state)
 
 	params: Hi_Bye_In
 	um_err := mcp.unmarshal_lua_value(state, -1, &params)
@@ -87,13 +84,13 @@ hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 	result: Hi_Bye_Out
 	if params.hello == "NO" || params.goodbye == "NO" {
 		NO_NO :: "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
-		mcp.sandbox_error(state, NO_NO)
+		mcp.error(state, NO_NO)
 		return 0
 	}
 	result.hi = strings.concatenate({params.hello, " lol"})
 	result.bye = strings.concatenate({"lmao ", params.goodbye})
 
-	// sandbox_error() sets this
+	// mcp.error() sets this, this var is what triggers the `isError` flag in the mcp response to the LLM
 	lua.getglobal(state, "MCP_IS_ERROR")
 	is_err := lua.toboolean(state, -1)
 	if is_err {
@@ -153,21 +150,32 @@ hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 	lua.pop(state, 1)
 
 	result: Hi_Bye_Out
+	is_error: bool
 	if params.hello == "NO" || params.goodbye == "NO" {
-		NO_NO :: "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
-		mcp.sandbox_error(state, NO_NO)
+		NO_NO: cstring : "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
+		// without using mcp.error, but doing what it does internally:
+		//
+		// first, add the string to the MCP_ERROR_OUTPUT global
+		// (MCP_PRINT_HARNESS_OUTPUT) is what the print() and printf() print to
+		lua.getglobal(state, "MCP_ERROR_OUTPUT")
+		lua.pushstring(state, NO_NO)
+		nextidx := lua.rawlen(state, -2) + 1
+		lua.seti(state, -2, lua.Integer(nextidx))
+
+		// now flag this as an error
+		lua.pushboolean(state, b32(true))
+		lua.setglobal(state, "MCP_IS_ERROR")
+
+		// you could also just do:
+		// lua.pushstring(state, NO_NO)
+		// lua.error(state)
+		// though the output would be slightly different
 		return 0
 	}
 	result.hi = strings.concatenate({params.hello, " lol"})
 	result.bye = strings.concatenate({"lmao ", params.goodbye})
 	defer delete(result.hi)
 	defer delete(result.bye)
-
-	lua.getglobal(state, "MCP_IS_ERROR")
-	is_err := lua.toboolean(state, -1)
-	if is_err {
-		return 0
-	}
 
 	lua.createtable(state, 0, 2)
 
@@ -176,7 +184,6 @@ hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 
 	lua.pushstring(state, cstring(raw_data(result.bye)))
 	lua.setfield(state, -2, "bye")
-
 
 	return 1
 }

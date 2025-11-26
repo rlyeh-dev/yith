@@ -16,13 +16,12 @@ In addition, the `help`, `search`, `list`, and `docs` tools have in-lua equivale
 
 The only other MCP-SDK features that support is planned for are user-initiated prompts (slash commands), though client support for these is incredibly limited currently, so it is not a priority. 
 
-Currently still a work in progress. Haven't bothered actually implementing the mcp protocol or transport layers yet, those are the boring parts. :> Sandbox evaluate and basic api search backend support are working.
-
 ### Usage 
 
 ```odin
 
 import mcp "path/to/yith/mcp"
+import lua "vendor:lua/5.4"
 
 main :: proc() {
   server := mcp.make_server("CodeExecMCP", "Code Execution MCP utilizing Yith MCP Framework", "1.2.3")
@@ -32,12 +31,12 @@ main :: proc() {
   // api docs registry happens outside of the sandbox, before lua
   // is ever booted up, while function registration happens within 
   // the sandbox
-  mcp.add_documentation(server, NAME, DESC, DOCS) 
+  mcp.add_documentation(server, NAME, SIG, DESC, DOCS) 
 
   // Register the sandbox setup to add the function to each sandbox, 
   // as the lua environment is recreated on every evaluate call
-  mcp.setup(server, proc(sandbox: mcp.Sandbox) {
-    mcp.add_function(sandbox, Input, Output, NAME, do_something)
+  mcp.setup(server, proc(state: ^lua.State) {
+    mcp.add_function(state, NAME, do_something)
   })
   
   // Start the MCP stdio server. no http server is provided at this time.
@@ -45,23 +44,25 @@ main :: proc() {
 }
 
 NAME :: "do_something"
+// the signature is VERY helpful to llms to get a basic idea of the api 
+// without needing to pull full docs
+SIG :: `do_something({ str = "string to do something with" })`
 DESC :: "it does... something"
 Input :: struct { str: string }
 Output :: struct { str: string }
 // it is possible to write your own lua wrapper `proc "c" ()` style handlers, 
 // and register them with `lua.register()`, but for simple calls and printing
 // output, this style is easiest and most ergonomic.
-do_something :: proc(params: Input, sandbox: mcp.Sandbox) -> (result: Output) {
-  // this gets printed. sandbox_printf also. 
-  sandbox_print(sandbox, "do_something was called with input: " + params.str)
-  // this syntax also works:
-  sandbox->printf("do_something likes your input: %s", params.str)
+do_something :: proc(params: Input, state: ^lua.State) -> (result: Output) {
+  // this gets printed as output in the tool call response to the LLM
+  mcp.print(state, "do_something was called with input: " + params.str)
+  // printf style works too
+  mcp.printf(state, "do_something likes your input: %s", params.str)
   
   if params.str == "BAD_INPUT" {
-    // error/errorf also work in both sandbox_ and sandbox-> syntaxes
     // this treats the result as a fatal error, and this call will be
-    // reported back as an error to the LLM
-    sandbox_error(sandbox, "do not send me bad input :(")
+    // reported back as an error to the LLM. mcp.errorf() also exists
+    mcp.error(state, "do not send me bad input :(")
     return
   }
   

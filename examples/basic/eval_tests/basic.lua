@@ -25,3 +25,10 @@ res = hello_goodbye_raw_lua({ hello = "haha sup", goodbye = "later tater rofl" }
 print("hi:", res.hi)
 print("bye:", res.bye)
 print()
+
+
+print("HIHI BYEBYE #3: ")
+res = hello_goodbye_auto({ hello = "hi", goodbye = "bye" })
+print("hi:", res.hi)
+print("bye:", res.bye)
+print()
