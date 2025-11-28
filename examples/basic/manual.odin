@@ -62,7 +62,7 @@ Hi_Bye_Out :: struct {
 hello_goodbye :: proc(input: Hi_Bye_In, state: ^lua.State) -> (output: Hi_Bye_Out) {
 	if input.hello == "NO" || input.goodbye == "NO" {
 		NO_NO :: "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
-		mcp.error(state, NO_NO)
+		mcp.lua_eprintln(state, NO_NO)
 		return
 	}
 	output.hi = strings.concatenate({input.hello, " lol"})
@@ -77,6 +77,7 @@ hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 	params: Hi_Bye_In
 	um_err := mcp.unmarshal_lua_value(state, -1, &params)
 	if um_err != .None {
+		// does the same thing as `mcp.lua_abort(state, "could not marshal input")`
 		lua.pushstring(state, "could not unmarshal input")
 		lua.error(state)
 	}
@@ -84,18 +85,14 @@ hello_goodbye_marshaled :: proc "c" (state: ^lua.State) -> i32 {
 	result: Hi_Bye_Out
 	if params.hello == "NO" || params.goodbye == "NO" {
 		NO_NO :: "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
-		mcp.error(state, NO_NO)
+		// this will trigger a lua.error() under the hood. we could also
+		// manually call it ourselves, or use mcp.lua_abort() which is
+		// lua.error() same but does the pushstring for you
+		mcp.lua_eprintln(state, NO_NO)
 		return 0
 	}
 	result.hi = strings.concatenate({params.hello, " lol"})
 	result.bye = strings.concatenate({"lmao ", params.goodbye})
-
-	// mcp.error() sets this, this var is what triggers the `isError` flag in the mcp response to the LLM
-	lua.getglobal(state, "MCP_IS_ERROR")
-	is_err := lua.toboolean(state, -1)
-	if is_err {
-		return 0
-	}
 
 	m_err := mcp.marshal_lua_value(state, result)
 	if m_err != nil {
@@ -153,23 +150,24 @@ hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 	is_error: bool
 	if params.hello == "NO" || params.goodbye == "NO" {
 		NO_NO: cstring : "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
-		// without using mcp.error, but doing what it does internally:
-		//
-		// first, add the string to the MCP_ERROR_OUTPUT global
-		// (MCP_PRINT_HARNESS_OUTPUT) is what the print() and printf() print to
-		lua.getglobal(state, "MCP_ERROR_OUTPUT")
+		// without using mcp.eprintln, but doing what it does internally:
+		// first, add the string to the MCP_PRINT_HARNESS_OUTPUT global table
+		lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
 		lua.pushstring(state, NO_NO)
 		nextidx := lua.rawlen(state, -2) + 1
 		lua.seti(state, -2, lua.Integer(nextidx))
 
-		// now flag this as an error
-		lua.pushboolean(state, b32(true))
-		lua.setglobal(state, "MCP_IS_ERROR")
-
-		// you could also just do:
-		// lua.pushstring(state, NO_NO)
-		// lua.error(state)
-		// though the output would be slightly different
+		// internally, the `mcp.lua_eprint*` calls also do:
+		//
+		// lua.pushboolean(state, b32(true))
+		// lua.setfield(state, lua.REGISTRYINDEX, "is_error")
+		//
+		// however, since we're bypassing the lua_wrapper provided by
+		// mcp.add_function(), by the time is_error is checked the name
+		// of our function will be unknown. therefore, we must do either
+		// `lua.pushstring()+lua.error()` or `lua.mcp_abort()`
+		lua.pushstring(state, "error in hello_goodbye_raw_lua")
+		lua.error(state)
 		return 0
 	}
 	result.hi = strings.concatenate({params.hello, " lol"})
@@ -187,7 +185,6 @@ hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 
 	return 1
 }
-
 
 build_hg_docs :: proc(name: string) -> string {
 	// ignore the `allocated`. it will always allocate in this case, because we know our

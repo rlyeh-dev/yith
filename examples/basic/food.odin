@@ -29,16 +29,20 @@ setup_food_service :: proc(server: ^mcp.Server) {
 
 food_service_tool :: proc(input: Food_Service_Input, state: ^lua.State) -> (output: Food_Service_Output) {
 	// mcp provides print / printf / error / errorf procs that print to the output LLM receives from tool call
-	mcp.print(state, "lol im printing for you")
+	mcp.lua_println(state, "lol im printing for you")
 	if input.food == "cherry" {
-		// mcp.error(state, )
-		mcp.abort(state, "You can't have ANY OF my cherries THEY ARE MINE")
+		// lua.error() will also end up calling lua_abort() (which is just
+		// `lua.pushstate(state, error); lua.error(state)` in one call) after
+		// we return if we call any of the `mcp.lua_eprint*` functions.
+		// there is a slight difference in the output, but it won't confuse
+		// the LLM
+		mcp.lua_abort(state, "You can't have ANY OF my cherries THEY ARE MINE")
 		return
 	}
 
 	if input.count > 10 {
 		// this syntax is also supported for error/errorf/print/printf
-		mcp.error(state, "You can't have more than 10 of any one food")
+		mcp.lua_eprintfln(state, "You can't have more than 10 of any one food")
 		return
 	}
 
@@ -52,7 +56,6 @@ food_service_tool :: proc(input: Food_Service_Input, state: ^lua.State) -> (outp
 	output.food = strings.join(out[:], ", ")
 	output.cost = rand.float64() * 50
 
-	fmt.eprintln("UH-OH: ", output)
 
 	return
 }

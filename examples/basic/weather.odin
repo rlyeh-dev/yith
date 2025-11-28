@@ -33,7 +33,7 @@ interplanetary_weather :: proc(params: Weather_Params, state: ^lua.State) -> (re
 	err: Weather_Error
 	report, err = weather_lookup(params.location)
 	if err != .None {
-		mcp.errorf(state, "Weather Lookup Error: %w", err)
+		mcp.lua_eprintfln(state, "Weather Lookup Error: %w", err)
 		return
 	}
 	return

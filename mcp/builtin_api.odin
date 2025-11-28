@@ -35,8 +35,8 @@ Api_Doc_Params :: struct {
 @(private = "package")
 builtin_api_docs :: proc(params: Api_Doc_Params, state: ^lua.State) -> (res: Empty) {
 	output, ok := docs_tool(mcp_server_instance(state), params.name)
-	if ok do print(state, output)
-	else do error(state, "Couldn't print output")
+	if ok do lua_println(state, output)
+	else do lua_eprintln(state, "Couldn't print output")
 	return
 }
 
@@ -44,8 +44,8 @@ builtin_api_docs :: proc(params: Api_Doc_Params, state: ^lua.State) -> (res: Emp
 builtin_api_help :: proc(params: Empty, state: ^lua.State) -> (res: Empty) {
 	output, ok := help_tool(mcp_server_instance(state))
 
-	if ok do print(state, output)
-	else do error(state, "Couldn't print output")
+	if ok do lua_println(state, output)
+	else do lua_eprintln(state, "Couldn't print output")
 
 	return
 }
@@ -72,7 +72,7 @@ Api_List_Results :: struct {
 @(private = "package")
 builtin_api_list :: proc(params: Api_List_Params, state: ^lua.State) -> (res: Api_List_Results) {
 	if params.page <= 0 {
-		error(state, "page must be >= 0")
+		lua_eprintln(state, "page must be >= 0")
 		return
 	}
 	res.more = false
@@ -84,7 +84,7 @@ builtin_api_list :: proc(params: Api_List_Params, state: ^lua.State) -> (res: Ap
 	api_max_idx := api_count - 1
 	first := (page - 1) * per_page
 	if first > api_max_idx {
-		err := fmt.aprintfln("no results for page %d", page)
+		lua_eprintfln(state, "no results for page %d", page)
 		return
 	}
 
@@ -102,7 +102,6 @@ builtin_api_list :: proc(params: Api_List_Params, state: ^lua.State) -> (res: Ap
 		res.next_page = page + 1
 		res.more = true
 	}
-	fmt.eprintfln("results apis:%d more:%w next:%d", len(res.apis), res.more, res.next_page)
 	return
 }
 
@@ -123,7 +122,7 @@ Api_Search_Result :: struct {
 builtin_api_search :: proc(params: Api_Search_Params, state: ^lua.State) -> (res: []Api_Search_Result) {
 	server := mcp_server_instance(state)
 	if params.query == "" {
-		error(state, "error: empty query. did you mean api_list()?")
+		lua_eprintln(state, "error: empty query. did you mean api_list()?")
 		return
 	}
 	query := params.query

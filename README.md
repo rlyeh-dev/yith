@@ -55,15 +55,33 @@ Output :: struct { str: string }
 // output, this style is easiest and most ergonomic.
 do_something :: proc(params: Input, state: ^lua.State) -> (result: Output) {
   // this gets printed as output in the tool call response to the LLM
-  mcp.print(state, "do_something was called with input: " + params.str)
-  // printf style works too
-  mcp.printf(state, "do_something likes your input: %s", params.str)
+  mcp.lua_print(state, "do_something was called with input:", params.str)
+  // printf style works too, supports all 4 of print/printf/println/printfln
+  mcp.lua_printf(state, "do_something likes your input: %s,", params.str)
   
   if params.str == "BAD_INPUT" {
     // this treats the result as a fatal error, and this call will be
-    // reported back as an error to the LLM. mcp.errorf() also exists
-    mcp.error(state, "do not send me bad input :(")
+    // reported back as an error to the LLM. as with lua_print* the 
+    // lua_eprint also supports all 4 variants
+    mcp.lua_eprintln(state, "do not send me bad input :(")
+    // immediately after return, before marshaling output params, the 
+    // wrapper function will know that we errored because we used a
+    // `mcp.lua_eprint*` call, and it will trigger a lua.error()
     return
+  }
+  
+  if params.str == "OTHER_BAD_INPUT" {
+    // can also do this, which is the same as doing
+    // `lua.pushstring(state, "msg"); lua.error(state)` except in one call
+    // since we're calling abort() directly, its best to return our own
+    // lua function name here (normally when we use the `mcp.lua_eprint*` procs, 
+    // the lua_wrapper that mcp.add_function() wraps us in will handle this,
+    // but the lua.error() longjmp will bypass that, so this will let the llm 
+    // know what function call errored)
+    mcp.lua_abort(state, "[do_something()] your input sucks")
+    // technically not needed b/c lua.error() will longjmp us out of the 
+    // entire lua.L_dostring() call, but its nice to put for readability
+    return 
   }
   
   // by default this proc is run within a dynamic arena allocator, so allocate 
