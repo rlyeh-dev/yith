@@ -1,5 +1,3 @@
-MCP_PRINT_HARNESS_OUTPUT = {}
-
 local function dump(t, depth)
   depth = depth or 0
   if depth > 3 then return "..." end -- Prevent infinite recursion
@@ -17,12 +15,14 @@ local function dump(t, depth)
   return "{" .. table.concat(parts, ", ") .. "}"
 end
 
-print = function(...)
+function print(...)
   local args = { ... }
   local str = ""
   for i, v in ipairs(args) do
     if i > 1 then str = str .. "\t" end
     str = str .. dump(v)
   end
-  table.insert(MCP_PRINT_HARNESS_OUTPUT, str)
+  str = str .. "\n"
+  ---@diagnostic disable-next-line
+  append_to_llm_output(str) -- defined in / registered by odin
 end

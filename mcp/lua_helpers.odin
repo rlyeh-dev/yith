@@ -15,12 +15,9 @@ lua_abort :: proc(state: ^lua.State, msg: string = "Lua handler error") {
 	lua.error(state)
 }
 
-append_sandbox_output :: proc(state: ^lua.State, str: cstring) {
-	lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
-	nextidx := lua.rawlen(state, -1) + 1
-	lua.pushstring(state, str)
-	lua.seti(state, -2, lua.Integer(nextidx))
-	lua.pop(state, 1)
+append_sandbox_output :: proc(state: ^lua.State, str: string) {
+	llm_output := llm_output_builder(state)
+	strings.write_string(llm_output, str)
 }
 
 set_sandbox_error_state :: proc(state: ^lua.State) {
@@ -29,7 +26,7 @@ set_sandbox_error_state :: proc(state: ^lua.State) {
 }
 
 lua_eprint :: proc(state: ^lua.State, args: ..any, sep := " ", allocator := context.allocator) {
-	str := fmt.caprint(..args, sep = sep, allocator = allocator)
+	str := fmt.aprint(..args, sep = sep, allocator = allocator)
 	defer delete(str)
 	append_sandbox_output(state, str)
 	set_sandbox_error_state(state)
@@ -38,22 +35,20 @@ lua_eprint :: proc(state: ^lua.State, args: ..any, sep := " ", allocator := cont
 lua_eprintln :: proc(state: ^lua.State, args: ..any, sep := " ", allocator := context.allocator) {
 	str := fmt.aprintln(..args, sep = sep, allocator = allocator)
 	defer delete(str)
-	cstr := strings.clone_to_cstring(str)
-	defer delete(cstr)
-	append_sandbox_output(state, cstr)
+	append_sandbox_output(state, str)
 	set_sandbox_error_state(state)
 }
 
 //
 lua_eprintf :: proc(state: ^lua.State, fmt_str: string, args: ..any, allocator := context.allocator) {
-	str := fmt.caprintf(fmt_str, ..args, allocator = allocator)
+	str := fmt.aprintf(fmt_str, ..args, allocator = allocator)
 	defer delete(str)
 	append_sandbox_output(state, str)
 	set_sandbox_error_state(state)
 }
 
 lua_eprintfln :: proc(state: ^lua.State, fmt_str: string, args: ..any, allocator := context.allocator) {
-	str := fmt.caprintfln(fmt_str, ..args, allocator = allocator)
+	str := fmt.aprintfln(fmt_str, ..args, allocator = allocator)
 	defer delete(str)
 	append_sandbox_output(state, str)
 	set_sandbox_error_state(state)
@@ -62,7 +57,7 @@ lua_eprintfln :: proc(state: ^lua.State, fmt_str: string, args: ..any, allocator
 
 // the same as our custom lua `print()` except the lua one appends a newline and we have print() and println(). this output will be sent to the LLM
 lua_print :: proc(state: ^lua.State, args: ..any, sep := " ", allocator := context.allocator) {
-	str := fmt.caprint(..args, sep = sep, allocator = allocator)
+	str := fmt.aprint(..args, sep = sep, allocator = allocator)
 	defer delete(str)
 	append_sandbox_output(state, str)
 }
@@ -70,21 +65,19 @@ lua_print :: proc(state: ^lua.State, args: ..any, sep := " ", allocator := conte
 lua_println :: proc(state: ^lua.State, args: ..any, sep := " ", allocator := context.allocator) {
 	str := fmt.aprintln(..args, sep = sep, allocator = allocator)
 	defer delete(str)
-	cstr := strings.clone_to_cstring(str)
-	defer delete(cstr)
-	append_sandbox_output(state, cstr)
+	append_sandbox_output(state, str)
 }
 
 // printf() but will be sent as output to the LLM, like our internal lua print() but w/ fmt.aprintf backing it
 lua_printf :: proc(state: ^lua.State, fmt_str: string, args: ..any, allocator := context.allocator) {
-	str := fmt.caprintf(fmt_str, ..args, allocator = allocator)
+	str := fmt.aprintf(fmt_str, ..args, allocator = allocator)
 	defer delete(str)
 	append_sandbox_output(state, str)
 }
 
 // printfln() but will be sent as output to the LLM, like our internal lua print() but w/ fmt.aprintfln backing it
 lua_printfln :: proc(state: ^lua.State, fmt_str: string, args: ..any, allocator := context.allocator) {
-	str := fmt.caprintfln(fmt_str, ..args, allocator = allocator)
+	str := fmt.aprintfln(fmt_str, ..args, allocator = allocator)
 	defer delete(str)
 	append_sandbox_output(state, str)
 }
@@ -93,6 +86,13 @@ lua_printfln :: proc(state: ^lua.State, fmt_str: string, args: ..any, allocator 
 mcp_server_instance :: proc(state: ^lua.State) -> (server: ^Server) {
 	lua.getfield(state, lua.REGISTRYINDEX, "server")
 	server = (^Server)(lua.touserdata(state, -1))
+	lua.pop(state, 1)
+	return
+}
+
+llm_output_builder :: proc(state: ^lua.State) -> (llm_output: ^strings.Builder) {
+	lua.getfield(state, lua.REGISTRYINDEX, "llm_output")
+	llm_output = (^strings.Builder)(lua.touserdata(state, -1))
 	lua.pop(state, 1)
 	return
 }

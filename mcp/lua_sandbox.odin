@@ -33,6 +33,10 @@ lua_evaluate :: proc(server: ^Server, setup_procs: []Sandbox_Setup, lua_code: st
 	lua.pushboolean(state, b32(false))
 	lua.setfield(state, lua.REGISTRYINDEX, "is_error")
 
+	llm_output := strings.builder_make()
+	lua.pushlightuserdata(state, &llm_output)
+	lua.setfield(state, lua.REGISTRYINDEX, "llm_output")
+
 	lua.open_base(state)
 	lua.L_requiref(state, "string", lua.open_string, 1)
 	lua.L_requiref(state, "math", lua.open_math, 1)
@@ -43,6 +47,17 @@ lua_evaluate :: proc(server: ^Server, setup_procs: []Sandbox_Setup, lua_code: st
 	for setup_proc in setup_procs {
 		setup_proc(state)
 	}
+	lua.register(state, "append_to_llm_output", proc "c" (state: ^lua.State) -> i32 {
+		context = runtime.default_context()
+		context.allocator = arena_allocator(state)
+
+		typ := lua.type(state, -1)
+		if typ != .STRING { return 0 }
+		str := strings.clone_from_cstring(lua.tostring(state, -1))
+
+		append_sandbox_output(state, str)
+		return 0
+	})
 
 	lua.L_dostring(state, #load("etc/print_harness.lua"))
 
@@ -60,30 +75,14 @@ lua_evaluate :: proc(server: ^Server, setup_procs: []Sandbox_Setup, lua_code: st
 		lua.getfield(state, lua.REGISTRYINDEX, "is_error")
 		is_error = bool(lua.toboolean(state, -1))
 		lua.pop(state, 1)
-		err_str = strings.clone("fatal error")
-	}
-
-	output_builder := strings.builder_make()
-
-	lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
-	lua.L_checktype(state, -1, i32(lua.TTABLE))
-
-	output_len := lua.rawlen(state, -1)
-	defer strings.builder_destroy(&output_builder)
-
-	for idx in 1 ..= output_len {
-		lua.geti(state, -1, lua.Integer(idx))
-		cstr := lua.tostring(state, -1)
-		strings.write_string(&output_builder, strings.clone_from_cstring(cstr))
-		strings.write_string(&output_builder, "\n")
-		lua.pop(state, 1)
+		err_str = is_error ? strings.clone("fatal error") : err_str
 	}
 
 	if err_str != "" {
-		fmt.sbprintfln(&output_builder, "Lua fatal error: %s", err_str)
+		fmt.sbprintfln(&llm_output, "\nLua fatal error: %s", err_str)
 	}
 
-	output = strings.clone(strings.to_string(output_builder), parent_allocator)
+	output = strings.clone(strings.to_string(llm_output), parent_allocator)
 
 	return
 }

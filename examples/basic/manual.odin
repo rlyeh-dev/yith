@@ -149,13 +149,14 @@ hello_goodbye_raw_lua :: proc "c" (state: ^lua.State) -> i32 {
 	result: Hi_Bye_Out
 	is_error: bool
 	if params.hello == "NO" || params.goodbye == "NO" {
-		NO_NO: cstring : "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
+		NO_NO: string : "THIS IS AN ERROR STATE, NO IS NEITHER A VALID GREETING NOR A VALID .. um.. ANTI-GREETING"
 		// without using mcp.eprintln, but doing what it does internally:
-		// first, add the string to the MCP_PRINT_HARNESS_OUTPUT global table
-		lua.getglobal(state, "MCP_PRINT_HARNESS_OUTPUT")
-		lua.pushstring(state, NO_NO)
-		nextidx := lua.rawlen(state, -2) + 1
-		lua.seti(state, -2, lua.Integer(nextidx))
+		//
+		// slightly less manual: llm_output := mcp.llm_output_builder()
+		lua.getfield(state, lua.REGISTRYINDEX, "llm_output")
+		llm_output := (^strings.Builder)(lua.touserdata(state, -1))
+		lua.pop(state, 1)
+		fmt.sbprintln(llm_output, NO_NO)
 
 		// internally, the `mcp.lua_eprint*` calls also do:
 		//
